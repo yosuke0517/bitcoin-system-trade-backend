@@ -1,0 +1,26 @@
+go.sum
+
+/.idea
+
+/tmp
+
+/bin
+
+/pkg
+
+/src
+
+# config
+config.ini
+
+# log
+debug.log
+
+# env
+.env
+
+# sql-migrate config
+dbconfig.yml
+
+# local dbdata
+/dbdata
