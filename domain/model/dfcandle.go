@@ -8,6 +8,7 @@ type DataFrameCandle struct {
 	Candles     []Candle      `json:"candles"`
 }
 
+/** Timeのみをスライスで返す */
 func (df *DataFrameCandle) Times() []time.Time {
 	s := make([]time.Time, len(df.Candles))
 	for i, candle := range df.Candles {
@@ -16,6 +17,7 @@ func (df *DataFrameCandle) Times() []time.Time {
 	return s
 }
 
+/** Openのみをスライスで返す */
 func (df *DataFrameCandle) Opens() []float64 {
 	s := make([]float64, len(df.Candles))
 	for i, candle := range df.Candles {
@@ -24,6 +26,7 @@ func (df *DataFrameCandle) Opens() []float64 {
 	return s
 }
 
+/** Closeのみをスライスで返す */
 func (df *DataFrameCandle) Closes() []float64 {
 	s := make([]float64, len(df.Candles))
 	for i, candle := range df.Candles {
@@ -32,6 +35,7 @@ func (df *DataFrameCandle) Closes() []float64 {
 	return s
 }
 
+/** Highのみをスライスで返す */
 func (df *DataFrameCandle) Highs() []float64 {
 	s := make([]float64, len(df.Candles))
 	for i, candle := range df.Candles {
@@ -40,6 +44,7 @@ func (df *DataFrameCandle) Highs() []float64 {
 	return s
 }
 
+/** Lowのみをスライスで返す */
 func (df *DataFrameCandle) Low() []float64 {
 	s := make([]float64, len(df.Candles))
 	for i, candle := range df.Candles {
@@ -48,6 +53,7 @@ func (df *DataFrameCandle) Low() []float64 {
 	return s
 }
 
+/** Lowのみをスライスで返す */
 func (df *DataFrameCandle) Volume() []float64 {
 	s := make([]float64, len(df.Candles))
 	for i, candle := range df.Candles {
