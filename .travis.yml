@@ -1,0 +1,21 @@
+sudo: required
+language: go
+go:
+  - 1.13.8
+services:
+  - docker
+env:
+  global:
+    - GO111MODULE=on
+
+before_install:
+
+script:
+# 各コンテナでのテストケース追加するならここで
+
+after_success:
+  - docker build -t yosuke0517/bitcoin-system-trade-backend .
+  # Login to the docker cli
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # take those images and push them to docker hub
+  - docker push yosuke0517/bitcoin-system-trade-backend
