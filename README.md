@@ -1,9 +1,8 @@
 # bitcoin-system-trade-backend
-# レイヤードアーキテクチャを採用してみる
-- API通信：api/
-- アプリケーション層：application/
-- ドメイン層：domain/
-- DBとのやりとり：infrastructure/
+# フォルダ構成
+- API通信：bitflyer（他の取引所を使う際はapi/bitflyerにする）
+- アプリケーション層：application（DB操作とかSerializerとかを呼んでレスポンスをまとめる）
+- ドメイン層：domain（ModelとかControllerから呼ぶserializerとか）
 ### フロー
 - controller→service→database→repositoryな感じ
   - controllerからは外部API通信かservice（DB）を呼ぶだけ（serviceは名前だけで何をするかわかるようにできるだけ具体的な名前がいいかも）
