@@ -34,7 +34,7 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		df, _ := service.GetAllCandle(productCode, durationTime, limit)
 
-		//
+		// 単純移動平均線
 		sma := r.URL.Query().Get("sma")
 		if sma != "" {
 			// パラメータが入っていない場合、デフォルトは7,14,50
@@ -56,6 +56,29 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddSma(period1)
 			df.AddSma(period2)
 			df.AddSma(period3)
+		}
+
+		// 指数平滑移動平均線
+		ema := r.URL.Query().Get("ema")
+		if ema != "" {
+			strEmaPeriod1 := r.URL.Query().Get("emaPeriod1")
+			strEmaPeriod2 := r.URL.Query().Get("emaPeriod2")
+			strEmaPeriod3 := r.URL.Query().Get("emaPeriod3")
+			period1, err := strconv.Atoi(strEmaPeriod1)
+			if strEmaPeriod1 == "" || err != nil || period1 < 0 {
+				period1 = 7
+			}
+			period2, err := strconv.Atoi(strEmaPeriod2)
+			if strEmaPeriod2 == "" || err != nil || period2 < 0 {
+				period2 = 14
+			}
+			period3, err := strconv.Atoi(strEmaPeriod3)
+			if strEmaPeriod3 == "" || err != nil || period3 < 0 {
+				period3 = 50
+			}
+			df.AddEma(period1)
+			df.AddEma(period2)
+			df.AddEma(period3)
 		}
 
 		response.Success(w, df)
