@@ -10,9 +10,17 @@ type DataFrameCandle struct {
 	Duration    time.Duration `json:"duration"`
 	Candles     []Candle      `json:"candles"`
 	Smas        []Sma         `json:"smas,omitempty"`
+	Emas        []Ema         `json:"emas,omitempty"`
 }
 
+/** 単純移動平均線 */
 type Sma struct {
+	Period int       `json:"period,omitempty"` // omitempty←データがない時はjsonとして返却しない
+	Values []float64 `json:"values,omitempty"`
+}
+
+/** 指数平滑移動平均線 */
+type Ema struct {
 	Period int       `json:"period,omitempty"` // omitempty←データがない時はjsonとして返却しない
 	Values []float64 `json:"values,omitempty"`
 }
@@ -78,6 +86,19 @@ func (df *DataFrameCandle) AddSma(period int) bool {
 		df.Smas = append(df.Smas, Sma{
 			Period: period,
 			Values: talib.Sma(df.Closes(), period),
+		})
+		return true
+	}
+	return false
+}
+
+/** 指数平滑移動平均線 */
+func (df *DataFrameCandle) AddEma(period int) bool {
+	// ex) period = 14
+	if len(df.Candles) > period {
+		df.Emas = append(df.Emas, Ema{
+			Period: period,
+			Values: talib.Ema(df.Closes(), period),
 		})
 		return true
 	}
