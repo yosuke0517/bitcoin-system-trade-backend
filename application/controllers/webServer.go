@@ -81,6 +81,21 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddEma(period3)
 		}
 
+		bbands := r.URL.Query().Get("bbands")
+		if bbands != "" {
+			strN := r.URL.Query().Get("bbandsN")
+			strK := r.URL.Query().Get("bbandsK")
+			n, err := strconv.Atoi(strN)
+			if strN == "" || err != nil || n < 0 {
+				n = 20
+			}
+			k, err := strconv.Atoi(strK)
+			if strK == "" || err != nil || k < 0 {
+				k = 2
+			}
+			df.AddBBands(n, float64(k))
+		}
+
 		response.Success(w, df)
 	}
 }

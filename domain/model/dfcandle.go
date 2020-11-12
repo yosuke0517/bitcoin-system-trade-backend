@@ -11,6 +11,7 @@ type DataFrameCandle struct {
 	Candles     []Candle      `json:"candles"`
 	Smas        []Sma         `json:"smas,omitempty"`
 	Emas        []Ema         `json:"emas,omitempty"`
+	BBands      *BBands       `json:"bbands,omitempty"` // スライスじゃない場合はポインタ（ポインタがないとStructの空のjsonを返してしまいomitemptyが効かない）
 }
 
 /** 単純移動平均線 */
@@ -23,6 +24,15 @@ type Sma struct {
 type Ema struct {
 	Period int       `json:"period,omitempty"` // omitempty←データがない時はjsonとして返却しない
 	Values []float64 `json:"values,omitempty"`
+}
+
+/** ボリンジャーバンド */
+type BBands struct {
+	N    int       `json:"n,omitempty"`    // 移動平均線期間
+	K    float64   `json:"k,omitempty"`    // 標準偏差２個（上下の線を算出するために必要）
+	Up   []float64 `json:"up,omitempty"`   // 上のライン
+	Mid  []float64 `json:"mid,omitempty"`  // 中央のライン
+	Down []float64 `json:"down,omitempty"` // 下のライン
 }
 
 /** Timeのみをスライスで返す */
@@ -100,6 +110,25 @@ func (df *DataFrameCandle) AddEma(period int) bool {
 			Period: period,
 			Values: talib.Ema(df.Closes(), period),
 		})
+		return true
+	}
+	return false
+}
+
+/** ボリンジャーバンド
+n: 移動平均線の期間（デフォルト20）
+k: 標準偏差２個分（デフォルト2）
+*/
+func (df *DataFrameCandle) AddBBands(n int, k float64) bool {
+	if n <= len(df.Closes()) {
+		up, mid, down := talib.BBands(df.Closes(), n, k, k, 0)
+		df.BBands = &BBands{
+			N:    n,
+			K:    k,
+			Up:   up,
+			Mid:  mid,
+			Down: down,
+		}
 		return true
 	}
 	return false
