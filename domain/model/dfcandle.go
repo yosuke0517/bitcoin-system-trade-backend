@@ -16,6 +16,7 @@ type DataFrameCandle struct {
 	IchimokuCloud *IchimokuCloud `json:"ichimoku,omitempty"`
 	Rsi           *Rsi           `json:"rsi,omitempty"`
 	Macd          *Macd          `json:"macd,omitempty"`
+	Hvs           []Hv           `json:"hvs,omitempty"`
 }
 
 /** 単純移動平均線 */
@@ -54,6 +55,7 @@ type Rsi struct {
 	Values []float64 `json:"values,omitempty"`
 }
 
+/** MACD */
 type Macd struct {
 	FastPeriod   int       `json:"fast_period,omitempty"`
 	SlowPeriod   int       `json:"slow_period,omitempty"`
@@ -61,6 +63,12 @@ type Macd struct {
 	Macd         []float64 `json:"macd,omitempty"`
 	MacdSignal   []float64 `json:"macd_signal,omitempty"`
 	MacdHist     []float64 `json:"macd_hist,omitempty"`
+}
+
+/** ヒストリカルボラティリティ （値動きの激しさを計る指標）*/
+type Hv struct {
+	Period int       `json:"period,omitempty"`
+	Values []float64 `json:"values,omitempty"`
 }
 
 /** Timeのみをスライスで返す */
@@ -204,6 +212,18 @@ func (df *DataFrameCandle) AddMacd(inFastPeriod, inSlowPeriod, inSignalPeriod in
 			MacdSignal:   outMACDSignal,
 			MacdHist:     outMACDHist,
 		}
+		return true
+	}
+	return false
+}
+
+/** ヒストリカルボラティリティ */
+func (df *DataFrameCandle) AddHv(period int) bool {
+	if len(df.Candles) >= period {
+		df.Hvs = append(df.Hvs, Hv{
+			Period: period,
+			Values: tradingalgo.Hv(df.Closes(), period),
+		})
 		return true
 	}
 	return false

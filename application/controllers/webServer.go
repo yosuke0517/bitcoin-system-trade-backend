@@ -132,6 +132,28 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddMacd(period1, period2, period3)
 		}
 
+		hv := r.URL.Query().Get("hv")
+		if hv != "" {
+			strPeriod1 := r.URL.Query().Get("hvPeriod1")
+			strPeriod2 := r.URL.Query().Get("hvPeriod2")
+			strPeriod3 := r.URL.Query().Get("hvPeriod3")
+			period1, err := strconv.Atoi(strPeriod1)
+			if strPeriod1 == "" || err != nil || period1 < 0 {
+				period1 = 21
+			}
+			period2, err := strconv.Atoi(strPeriod2)
+			if strPeriod2 == "" || err != nil || period2 < 0 {
+				period2 = 63
+			}
+			period3, err := strconv.Atoi(strPeriod3)
+			if strPeriod3 == "" || err != nil || period3 < 0 {
+				period3 = 252
+			}
+			df.AddHv(period1)
+			df.AddHv(period2)
+			df.AddHv(period3)
+		}
+
 		response.Success(w, df)
 	}
 }
