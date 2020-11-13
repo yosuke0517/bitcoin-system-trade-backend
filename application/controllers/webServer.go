@@ -101,6 +101,17 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddIchimoku()
 		}
 
+		rsi := r.URL.Query().Get("rsi")
+		if rsi != "" {
+			strPeriod := r.URL.Query().Get("rsiPeriod")
+			period, err := strconv.Atoi(strPeriod)
+			// デフォルトは14
+			if strPeriod == "" || err != nil || period < 0 {
+				period = 14
+			}
+			df.AddRsi(period)
+		}
+
 		response.Success(w, df)
 	}
 }

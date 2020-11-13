@@ -19,18 +19,19 @@ func CreateCandleWithDuration(ticker bitflyer.Ticker, productCode string, durati
 		candle.Insert()
 		return true
 	}
+	// High, Lowの更新があった場合のみデータベースに保存する
 	shouldSave := false
 	// 分・時単位は秒単位ではupdateする
-	if currentCandle.High <= price {
+	if currentCandle.High < price {
 		currentCandle.High = price
 		shouldSave = true
-	} else if currentCandle.Low >= price {
+	} else if currentCandle.Low > price {
 		currentCandle.Low = price
 		shouldSave = true
 	}
 	// Volumeは毎回足す
 	currentCandle.Volume += ticker.Volume
-	if shouldSave == true || time.Now().Truncate(time.Second).Second() == 59 {
+	if shouldSave == true || time.Now().Truncate(time.Second).Second() > 59 {
 		currentCandle.Close = price
 		currentCandle.Save()
 		shouldSave = false
