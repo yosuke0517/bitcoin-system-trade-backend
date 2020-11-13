@@ -74,6 +74,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 
 /** 時間を指定して売買イベントの結果を取得する */
 func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
+	// MySqlの場合はサブクエリにasが必要
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE time >= ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableNameSignalEvents)
 	rows, err := domain.DB.Query(cmd, timeTime)
 	if err != nil {
