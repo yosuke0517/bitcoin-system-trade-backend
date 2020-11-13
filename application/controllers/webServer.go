@@ -96,6 +96,11 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddBBands(n, float64(k))
 		}
 
+		ichimoku := r.URL.Query().Get("ichimoku")
+		if ichimoku != "" {
+			df.AddIchimoku()
+		}
+
 		response.Success(w, df)
 	}
 }
