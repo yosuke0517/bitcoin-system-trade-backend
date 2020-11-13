@@ -14,6 +14,7 @@ type DataFrameCandle struct {
 	Emas          []Ema          `json:"emas,omitempty"`
 	BBands        *BBands        `json:"bbands,omitempty"` // スライスじゃない場合はポインタ（ポインタがないとStructの空のjsonを返してしまいomitemptyが効かない）
 	IchimokuCloud *IchimokuCloud `json:"ichimoku,omitempty"`
+	Rsi           *Rsi           `json:"rsi,omitempty"`
 }
 
 /** 単純移動平均線 */
@@ -37,12 +38,19 @@ type BBands struct {
 	Down []float64 `json:"down,omitempty"` // 下のライン
 }
 
+/** 一目均衡表 */
 type IchimokuCloud struct {
 	Tenkan  []float64 `json:"tenkan,omitempty"`
 	Kijun   []float64 `json:"kijun,omitempty"`
 	SenkouA []float64 `json:"senkoua,omitempty"`
 	SenkouB []float64 `json:"senkoub,omitempty"`
 	Chikou  []float64 `json:"chikou,omitempty"`
+}
+
+/** RSI（買われすぎ, 売られすぎの指標）*/
+type Rsi struct {
+	Period int       `json:"period,omitempty"`
+	Values []float64 `json:"values,omitempty"`
 }
 
 /** Timeのみをスライスで返す */
@@ -155,6 +163,19 @@ func (df *DataFrameCandle) AddIchimoku() bool {
 			SenkouA: senkouA,
 			SenkouB: senkouB,
 			Chikou:  chikou,
+		}
+		return true
+	}
+	return false
+}
+
+/** RSI */
+func (df *DataFrameCandle) AddRsi(period int) bool {
+	if len(df.Candles) > period {
+		values := talib.Rsi(df.Closes(), period)
+		df.Rsi = &Rsi{
+			Period: period,
+			Values: values,
 		}
 		return true
 	}
