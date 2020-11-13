@@ -15,6 +15,7 @@ type DataFrameCandle struct {
 	BBands        *BBands        `json:"bbands,omitempty"` // スライスじゃない場合はポインタ（ポインタがないとStructの空のjsonを返してしまいomitemptyが効かない）
 	IchimokuCloud *IchimokuCloud `json:"ichimoku,omitempty"`
 	Rsi           *Rsi           `json:"rsi,omitempty"`
+	Macd          *Macd          `json:"macd,omitempty"`
 }
 
 /** 単純移動平均線 */
@@ -51,6 +52,15 @@ type IchimokuCloud struct {
 type Rsi struct {
 	Period int       `json:"period,omitempty"`
 	Values []float64 `json:"values,omitempty"`
+}
+
+type Macd struct {
+	FastPeriod   int       `json:"fast_period,omitempty"`
+	SlowPeriod   int       `json:"slow_period,omitempty"`
+	SignalPeriod int       `json:"signal_period,omitempty"`
+	Macd         []float64 `json:"macd,omitempty"`
+	MacdSignal   []float64 `json:"macd_signal,omitempty"`
+	MacdHist     []float64 `json:"macd_hist,omitempty"`
 }
 
 /** Timeのみをスライスで返す */
@@ -176,6 +186,23 @@ func (df *DataFrameCandle) AddRsi(period int) bool {
 		df.Rsi = &Rsi{
 			Period: period,
 			Values: values,
+		}
+		return true
+	}
+	return false
+}
+
+/** MACD */
+func (df *DataFrameCandle) AddMacd(inFastPeriod, inSlowPeriod, inSignalPeriod int) bool {
+	if len(df.Candles) > 1 {
+		outMACD, outMACDSignal, outMACDHist := talib.Macd(df.Closes(), inFastPeriod, inSlowPeriod, inSignalPeriod)
+		df.Macd = &Macd{
+			FastPeriod:   inFastPeriod,
+			SlowPeriod:   inSlowPeriod,
+			SignalPeriod: inSignalPeriod,
+			Macd:         outMACD,
+			MacdSignal:   outMACDSignal,
+			MacdHist:     outMACDHist,
 		}
 		return true
 	}
