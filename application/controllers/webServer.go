@@ -4,7 +4,6 @@ import (
 	"app/application/response"
 	"app/config"
 	"app/domain/service"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -182,11 +181,12 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		if events != "" {
 			if isBackTest == "true" {
-				performance, p1, p2 := df.OptimizeBb()
-				log.Println(performance, p1, p2)
-				if performance > 0 {
-					df.Events = df.BackTestBb(p1, p2)
-				}
+				//performance, p1, p2 := df.OptimizeBb()
+				//log.Println(performance, p1, p2)
+				//if performance > 0 {
+				//	df.Events = df.BackTestBb(p1, p2)
+				//}
+				df.Events = df.BackTestIchimoku()
 			} else {
 				firstTime := df.Candles[0].Time
 				df.AddEvents(firstTime)

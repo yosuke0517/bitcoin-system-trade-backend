@@ -344,3 +344,42 @@ func (df *DataFrameCandle) OptimizeBb() (performance float64, bestN int, bestK f
 	}
 	return performance, bestN, bestK
 }
+
+/** 一目均衡表 */
+func (df *DataFrameCandle) BackTestIchimoku() *SignalEvents {
+	lenCandles := len(df.Candles)
+
+	if lenCandles <= 52 {
+		return nil
+	}
+
+	var signalEvents SignalEvents
+	tenkan, kijun, senkouA, senkouB, chikou := tradingalgo.IchimokuCloud(df.Closes())
+
+	for i := 1; i < lenCandles; i++ {
+		// 買い判定（三役好転）
+		if chikou[i-1] < df.Candles[i-1].High && chikou[i] >= df.Candles[i].High &&
+			senkouA[i] < df.Candles[i].Low && senkouB[i] < df.Candles[i].Low &&
+			tenkan[i] > kijun[i] {
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+		}
+
+		// 売り判定（三役逆転）
+		if chikou[i-1] > df.Candles[i-1].Low && chikou[i] <= df.Candles[i].Low &&
+			senkouA[i] > df.Candles[i].High && senkouB[i] > df.Candles[i].High &&
+			tenkan[i] < kijun[i] {
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+		}
+	}
+	return &signalEvents
+}
+
+// 一目均衡表最適化
+func (df *DataFrameCandle) OptimizeIchimoku() (performance float64) {
+	signalEvents := df.BackTestIchimoku()
+	if signalEvents == nil {
+		return 0.0
+	}
+	performance = signalEvents.Profit()
+	return performance
+}
