@@ -276,7 +276,7 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
 func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, bestPeriod2 int) {
 	bestPeriod1 = 7
 	bestPeriod2 = 14
-
+	// TODO 数を伸ばしたりして要調整 No.129
 	for period1 := 5; period1 < 11; period1++ {
 		for period2 := 12; period2 < 20; period2++ {
 			signalEvents := df.BackTestEma(period1, period2)
@@ -293,4 +293,54 @@ func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, 
 		}
 	}
 	return performance, bestPeriod1, bestPeriod2
+}
+
+/** ボリンジャーバンドバックテスト */
+func (df *DataFrameCandle) BackTestBb(n int, k float64) *SignalEvents {
+	lenCandles := len(df.Candles)
+	// キャンドル数チェック
+	if lenCandles <= n {
+		return nil
+	}
+
+	signalEvents := &SignalEvents{}
+	bbUp, _, bbDown := talib.BBands(df.Closes(), n, k, k, 0)
+	// i < nの時は０が返ってくる？のでスキップ
+	for i := 1; i < lenCandles; i++ {
+		if i < n {
+			continue
+		}
+		// 買い（売られ過ぎ）判定
+		if bbDown[i-1] > df.Candles[i-1].Close && bbDown[i] <= df.Candles[i].Close {
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+		}
+		// 売り（買われ過ぎ）判定
+		if bbUp[i-1] < df.Candles[i-1].Close && bbUp[i] >= df.Candles[i].Close {
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+		}
+	}
+	return signalEvents
+}
+
+/** ボリンジャーバンド最適化 */
+func (df *DataFrameCandle) OptimizeBb() (performance float64, bestN int, bestK float64) {
+	bestN = 20
+	bestK = 2.0
+	// TDOO 数を増やせば範囲が広がる（例 n := 10 n < 60 TODO No.130
+	for n := 10; n < 20; n++ {
+		// 1.0 , 3.0とかにすると範囲が広がり緩くなる
+		for k := 1.9; k < 2.1; k += 0.1 {
+			signalEvents := df.BackTestBb(n, k)
+			if signalEvents == nil {
+				continue
+			}
+			profit := signalEvents.Profit()
+			if performance < profit {
+				performance = profit
+				bestN = n
+				bestK = k
+			}
+		}
+	}
+	return performance, bestN, bestK
 }

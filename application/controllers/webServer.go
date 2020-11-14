@@ -164,14 +164,28 @@ func ApiCandleHandler() http.HandlerFunc {
 		/** 売買イベント */
 		events := r.URL.Query().Get("events")
 		isBackTest := os.Getenv("BACK_TEST")
+		// TODO EMA一旦コメントアウト
+		//if events != "" {
+		//	if isBackTest == "true" {
+		//		p, p1, p2 := df.OptimizeEma()
+		//		log.Println(p, p1, p2)
+		//		if p > 0 {
+		//			df.Events = df.BackTestEma(p1, p2)
+		//		} else {
+		//			log.Println("利益が出ないため未実施")
+		//		}
+		//	} else {
+		//		firstTime := df.Candles[0].Time
+		//		df.AddEvents(firstTime)
+		//	}
+		//}
+
 		if events != "" {
 			if isBackTest == "true" {
-				p, p1, p2 := df.OptimizeEma()
-				log.Println(p, p1, p2)
-				if p > 0 {
-					df.Events = df.BackTestEma(p1, p2)
-				} else {
-					log.Println("利益が出ないため未実施")
+				performance, p1, p2 := df.OptimizeBb()
+				log.Println(performance, p1, p2)
+				if performance > 0 {
+					df.Events = df.BackTestBb(p1, p2)
 				}
 			} else {
 				firstTime := df.Candles[0].Time
