@@ -196,12 +196,26 @@ func ApiCandleHandler() http.HandlerFunc {
 		//}
 
 		// MACD確認
+		//if events != "" {
+		//	if isBackTest == "true" {
+		//		performance, p1, p2, p3 := df.OptimizeMacd()
+		//		log.Println(performance, p1, p2, p3)
+		//		if performance > 0 {
+		//			df.Events = df.BackTestMacd(p1, p2, p3)
+		//		}
+		//	} else {
+		//		firstTime := df.Candles[0].Time
+		//		df.AddEvents(firstTime)
+		//	}
+		//}
+
+		// RSI確認用
 		if events != "" {
 			if isBackTest == "true" {
-				performance, p1, p2, p3 := df.OptimizeMacd()
+				performance, p1, p2, p3 := df.OptimizeRsi()
 				log.Println(performance, p1, p2, p3)
 				if performance > 0 {
-					df.Events = df.BackTestMacd(p1, p2, p3)
+					df.Events = df.BackTestRsi(p1, p2, p3)
 				}
 			} else {
 				firstTime := df.Candles[0].Time
