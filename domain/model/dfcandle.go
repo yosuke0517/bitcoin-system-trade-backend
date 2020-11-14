@@ -514,6 +514,9 @@ type Ranking struct {
 	Performance float64
 }
 
+/**
+どのインディケータでトレードを行うかを返す
+return TradeParams */
 func (df *DataFrameCandle) OptimizeParams() *TradeParams {
 	emaPerformance, emaPeriod1, emaPeriod2 := df.OptimizeEma()
 	bbPerformance, bbN, bbK := df.OptimizeBb()
