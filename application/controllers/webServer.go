@@ -163,10 +163,9 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		/** 売買イベント */
 		events := r.URL.Query().Get("events")
-		isBackTest := os.Getenv("BACK_TEST")
 		// TODO EMA一旦コメントアウト
 		//if events != "" {
-		//	if isBackTest == "true" {
+		//	if config.Config.BackTest {
 		//		p, p1, p2 := df.OptimizeEma()
 		//		log.Println(p, p1, p2)
 		//		if p > 0 {
@@ -182,7 +181,7 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		// ボリンジャーバンド, 一目均衡表確認 TODO いったんコメントアウト
 		//if events != "" {
-		//	if isBackTest == "true" {
+		//	if config.Config.BackTest {
 		//		//performance, p1, p2 := df.OptimizeBb()
 		//		//log.Println(performance, p1, p2)
 		//		//if performance > 0 {
@@ -197,7 +196,7 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		// MACD確認
 		//if events != "" {
-		//	if isBackTest == "true" {
+		//	if config.Config.BackTest {
 		//		performance, p1, p2, p3 := df.OptimizeMacd()
 		//		log.Println(performance, p1, p2, p3)
 		//		if performance > 0 {
@@ -211,7 +210,7 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		// RSI確認用
 		if events != "" {
-			if isBackTest == "true" {
+			if config.Config.BackTest {
 				performance, p1, p2, p3 := df.OptimizeRsi()
 				log.Println(performance, p1, p2, p3)
 				if performance > 0 {

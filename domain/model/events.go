@@ -90,6 +90,22 @@ func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
 	return &signalEvents
 }
 
+type Events struct {
+	Length int `json:"length"`
+}
+
+/** 全ての売買イベント数を返す */
+func GetAllSignalEvents() int {
+	cmd := fmt.Sprintf(`SELECT count(*) FROM %s ;`, tableNameSignalEvents)
+	var events Events
+	err := domain.DB.QueryRow(cmd).Scan(&events.Length)
+	if err != nil {
+		return 0
+	}
+	eventsLength := events.Length
+	return eventsLength
+}
+
 /** 買えるかどうかの判定 */
 func (s *SignalEvents) CanBuy(time time.Time) bool {
 	lenSignals := len(s.Signals)
