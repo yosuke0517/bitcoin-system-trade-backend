@@ -4,6 +4,7 @@ import (
 	"app/application/response"
 	"app/config"
 	"app/domain/service"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -179,14 +180,29 @@ func ApiCandleHandler() http.HandlerFunc {
 		//	}
 		//}
 
+		// ボリンジャーバンド, 一目均衡表確認 TODO いったんコメントアウト
+		//if events != "" {
+		//	if isBackTest == "true" {
+		//		//performance, p1, p2 := df.OptimizeBb()
+		//		//log.Println(performance, p1, p2)
+		//		//if performance > 0 {
+		//		//	df.Events = df.BackTestBb(p1, p2)
+		//		//}
+		//		df.Events = df.BackTestIchimoku()
+		//	} else {
+		//		firstTime := df.Candles[0].Time
+		//		df.AddEvents(firstTime)
+		//	}
+		//}
+
+		// MACD確認
 		if events != "" {
 			if isBackTest == "true" {
-				//performance, p1, p2 := df.OptimizeBb()
-				//log.Println(performance, p1, p2)
-				//if performance > 0 {
-				//	df.Events = df.BackTestBb(p1, p2)
-				//}
-				df.Events = df.BackTestIchimoku()
+				performance, p1, p2, p3 := df.OptimizeMacd()
+				log.Println(performance, p1, p2, p3)
+				if performance > 0 {
+					df.Events = df.BackTestMacd(p1, p2, p3)
+				}
 			} else {
 				firstTime := df.Candles[0].Time
 				df.AddEvents(firstTime)

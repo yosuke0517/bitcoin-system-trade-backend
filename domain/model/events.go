@@ -1,7 +1,6 @@
 package model
 
 import (
-	"app/bitflyer"
 	"app/domain"
 	"encoding/json"
 	"fmt"
@@ -167,12 +166,9 @@ func (s *SignalEvents) Profit() float64 {
 	total := 0.0
 	beforeSell := 0.0
 	isHolding := false
-	bitflyerClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
-	params := map[string]string{
-		"product_code": "FX_BTC_JPY",
-	}
-	positionRes, _ := bitflyerClient.GetPositions(params)
-	if len(positionRes) != 0 {
+
+	// イベントの数が奇数のときは保有判定
+	if len(s.Signals)%1 == 0 {
 		isHolding = true
 	}
 
