@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type Position struct {
@@ -23,6 +24,7 @@ type Position struct {
 func (api *APIClient) GetPositions(query map[string]string) ([]Position, error) {
 	resp, _, err := api.doRequest("GET", "me/getpositions", query, nil)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	var position []Position

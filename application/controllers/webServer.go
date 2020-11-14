@@ -4,7 +4,6 @@ import (
 	"app/application/response"
 	"app/config"
 	"app/domain/service"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -29,7 +28,7 @@ func ApiCandleHandler() http.HandlerFunc {
 		duration := r.URL.Query().Get("duration")
 		if duration == "" {
 			// デフォルトは分とする
-			duration = "1m"
+			duration = "5m"
 		}
 		durationTime := config.Config.Durations[duration]
 
@@ -208,19 +207,28 @@ func ApiCandleHandler() http.HandlerFunc {
 		//	}
 		//}
 
-		// RSI確認用
 		if events != "" {
 			if config.Config.BackTest {
-				performance, p1, p2, p3 := df.OptimizeRsi()
-				log.Println(performance, p1, p2, p3)
-				if performance > 0 {
-					df.Events = df.BackTestRsi(p1, p2, p3)
-				}
+				df.Events = Ai.SignalEvents.CollectAfter(df.Candles[0].Time)
 			} else {
 				firstTime := df.Candles[0].Time
 				df.AddEvents(firstTime)
 			}
 		}
+
+		// RSI確認用
+		//if events != "" {
+		//	if config.Config.BackTest {
+		//		performance, p1, p2, p3 := df.OptimizeRsi()
+		//		log.Println(performance, p1, p2, p3)
+		//		if performance > 0 {
+		//			df.Events = df.BackTestRsi(p1, p2, p3)
+		//		}
+		//	} else {
+		//		firstTime := df.Candles[0].Time
+		//		df.AddEvents(firstTime)
+		//	}
+		//}
 
 		response.Success(w, df)
 	}

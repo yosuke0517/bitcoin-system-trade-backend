@@ -1,6 +1,7 @@
 package model
 
 import (
+	"app/config"
 	"app/domain/tradingalgo"
 	"github.com/markcheno/go-talib"
 	"os"
@@ -280,8 +281,8 @@ func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, 
 	bestPeriod1 = 7
 	bestPeriod2 = 14
 	// TODO 数を伸ばしたりして要調整 No.129
-	for period1 := 5; period1 < 11; period1++ {
-		for period2 := 12; period2 < 20; period2++ {
+	for period1 := 5; period1 < 50; period1++ {
+		for period2 := 12; period2 < 50; period2++ {
 			signalEvents := df.BackTestEma(period1, period2)
 			if signalEvents == nil {
 				continue
@@ -533,6 +534,23 @@ func (df *DataFrameCandle) OptimizeParams() *TradeParams {
 	// Rankingに格納してソートする
 	rankings := []*Ranking{emaRanking, bbRanking, macdRanking, ichimokuRanking, rsiRanking}
 	sort.Slice(rankings, func(i, j int) bool { return rankings[i].Performance > rankings[j].Performance })
+
+	// いずれのインディケータもfalseの場合再度キャンドルの結果を得てからオプティマイズし直す
+	isEnable := false
+	for i, ranking := range rankings {
+		if i >= config.Config.NumRanking {
+			break
+		}
+		if ranking.Performance > 0 {
+			ranking.Enable = true
+			// 1つでもインディケータが使えるならtrueにする
+			isEnable = true
+		}
+	}
+	// インディケータが1つも使えない場合はnilを返し再度オプティマイズさせる
+	if !isEnable {
+		return nil
+	}
 
 	// 環境変数から使用するインディケータを選出する
 	envNumRanking := os.Getenv("NUM_RANKING")

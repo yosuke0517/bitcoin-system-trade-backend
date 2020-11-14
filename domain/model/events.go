@@ -54,6 +54,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableNameSignalEvents)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"), loadEvents)
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 	defer rows.Close()
@@ -66,6 +67,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	}
 	err = rows.Err()
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 	return &signalEvents
@@ -77,6 +79,7 @@ func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE time >= ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableNameSignalEvents)
 	rows, err := domain.DB.Query(cmd, timeTime)
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 	defer rows.Close()
@@ -100,6 +103,7 @@ func GetAllSignalEvents() int {
 	var events Events
 	err := domain.DB.QueryRow(cmd).Scan(&events.Length)
 	if err != nil {
+		log.Println(err)
 		return 0
 	}
 	eventsLength := events.Length
@@ -216,6 +220,7 @@ func (s SignalEvents) MarshalJSON() ([]byte, error) {
 		Profit:  s.Profit(),
 	})
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	return value, err

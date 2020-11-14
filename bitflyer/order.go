@@ -42,6 +42,7 @@ type ResponseSendChildOrder struct {
 func (api *APIClient) SendOrder(order *Order) (*ResponseSendChildOrder, error) {
 	data, err := json.Marshal(order)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	url := "me/sendchildorder"
@@ -53,10 +54,8 @@ func (api *APIClient) SendOrder(order *Order) (*ResponseSendChildOrder, error) {
 	}
 	var response ResponseSendChildOrder
 	err = json.Unmarshal(resp, &response)
-	fmt.Println(err)
 	if err != nil {
-		fmt.Println("err")
-		fmt.Println(err)
+		log.Println(err)
 		return nil, err
 	}
 	return &response, nil
@@ -66,11 +65,13 @@ func (api *APIClient) SendOrder(order *Order) (*ResponseSendChildOrder, error) {
 func (api *APIClient) ListOrder(query map[string]string) ([]Order, error) {
 	resp, _, err := api.doRequest("GET", "me/getchildorders", query, nil)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	var responseListOrder []Order
 	err = json.Unmarshal(resp, &responseListOrder)
 	if err != nil {
+		log.Println(err)
 		return nil, err
 	}
 	return responseListOrder, nil
