@@ -173,7 +173,6 @@ func (s *SignalEvents) Profit() float64 {
 	}
 	positionRes, _ := bitflyerClient.GetPositions(params)
 	if len(positionRes) != 0 {
-		fmt.Println("ホールドあり")
 		isHolding = true
 	}
 

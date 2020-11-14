@@ -4,6 +4,7 @@ import (
 	"app/application/response"
 	"app/config"
 	"app/domain/service"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -162,9 +163,18 @@ func ApiCandleHandler() http.HandlerFunc {
 
 		/** 売買イベント */
 		events := r.URL.Query().Get("events")
+		isBackTest := os.Getenv("BACK_TEST")
 		if events != "" {
-			firstTime := df.Candles[0].Time
-			df.AddEvents(firstTime)
+			if isBackTest == "true" {
+				p, p1, p2 := df.OptimizeEma()
+				log.Println(p, p1, p2)
+				if p > 0 {
+					df.Events = df.BackTestEma(p1, p2)
+				}
+			} else {
+				firstTime := df.Candles[0].Time
+				df.AddEvents(firstTime)
+			}
 		}
 
 		response.Success(w, df)
