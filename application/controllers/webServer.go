@@ -170,6 +170,8 @@ func ApiCandleHandler() http.HandlerFunc {
 				log.Println(p, p1, p2)
 				if p > 0 {
 					df.Events = df.BackTestEma(p1, p2)
+				} else {
+					log.Println("利益が出ないため未実施")
 				}
 			} else {
 				firstTime := df.Candles[0].Time
