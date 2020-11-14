@@ -58,6 +58,7 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddSma(period3)
 		}
 
+		/** ema */
 		// 指数平滑移動平均線
 		ema := r.URL.Query().Get("ema")
 		if ema != "" {
@@ -81,6 +82,7 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddEma(period3)
 		}
 
+		/** ボリンジャーバンド */
 		bbands := r.URL.Query().Get("bbands")
 		if bbands != "" {
 			strN := r.URL.Query().Get("bbandsN")
@@ -96,11 +98,13 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddBBands(n, float64(k))
 		}
 
+		/** 一目均衡表 +/
 		ichimoku := r.URL.Query().Get("ichimoku")
 		if ichimoku != "" {
 			df.AddIchimoku()
 		}
 
+		/** rsi */
 		rsi := r.URL.Query().Get("rsi")
 		if rsi != "" {
 			strPeriod := r.URL.Query().Get("rsiPeriod")
@@ -112,6 +116,7 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddRsi(period)
 		}
 
+		/** macd */
 		macd := r.URL.Query().Get("macd")
 		if macd != "" {
 			strPeriod1 := r.URL.Query().Get("macdPeriod1")
@@ -132,6 +137,7 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddMacd(period1, period2, period3)
 		}
 
+		/** ヒストリカルボラティリティ */
 		hv := r.URL.Query().Get("hv")
 		if hv != "" {
 			strPeriod1 := r.URL.Query().Get("hvPeriod1")
@@ -152,6 +158,13 @@ func ApiCandleHandler() http.HandlerFunc {
 			df.AddHv(period1)
 			df.AddHv(period2)
 			df.AddHv(period3)
+		}
+
+		/** 売買イベント */
+		events := r.URL.Query().Get("events")
+		if events != "" {
+			firstTime := df.Candles[0].Time
+			df.AddEvents(firstTime)
 		}
 
 		response.Success(w, df)
