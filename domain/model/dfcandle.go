@@ -238,3 +238,59 @@ func (df *DataFrameCandle) AddEvents(timeTime time.Time) bool {
 	}
 	return false
 }
+
+/** EMAバックテスト */
+func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
+	lenCandles := len(df.Candles)
+	// キャンドル数が足りているかのチェック
+	if lenCandles <= period1 || lenCandles <= period2 {
+		return nil
+	}
+	signalEvents := NewSignalEvents()
+	// EMAを算出
+	emaValue1 := talib.Ema(df.Closes(), period1)
+	emaValue2 := talib.Ema(df.Closes(), period2)
+
+	// 指定の数までは値が0で入ってくるので飛ばす （7の場合の例：0,0,0,0,0,0,1005000,）
+	for i := 1; i < lenCandles; i++ {
+		if i < period1 || i < period2 {
+			continue
+		}
+
+		// ゴールデンクロス時は買い
+		if emaValue1[i-1] < emaValue2[i-1] && emaValue1[i] >= emaValue2[i] {
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+		}
+
+		// デッドクロス時は売り
+		if emaValue1[i-1] > emaValue2[i-1] && emaValue1[i] <= emaValue2[i] {
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+		}
+	}
+	return signalEvents
+}
+
+/** EMA最適化
+利益が出ないと判断すれば0, 7, 14を返す
+*/
+func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, bestPeriod2 int) {
+	bestPeriod1 = 7
+	bestPeriod2 = 14
+
+	for period1 := 5; period1 < 11; period1++ {
+		for period2 := 12; period2 < 20; period2++ {
+			signalEvents := df.BackTestEma(period1, period2)
+			if signalEvents == nil {
+				continue
+			}
+			// それぞれの利益を出して1番良い成績を残す日数を探す
+			profit := signalEvents.Profit()
+			if performance < profit {
+				performance = profit
+				bestPeriod1 = period1
+				bestPeriod2 = period2
+			}
+		}
+	}
+	return performance, bestPeriod1, bestPeriod2
+}
