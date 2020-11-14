@@ -66,6 +66,7 @@ func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercen
 	return Ai
 }
 
+/** インディケータの最適化 */
 func (ai *AI) UpdateOptimizeParams() {
 	df, _ := service.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
 	ai.OptimizedTradeParams = df.OptimizeParams()
@@ -211,7 +212,7 @@ func (ai *AI) Trade() {
 			// 順張りトレード
 			// ストップリミット(× 90%）
 			if eventLength%2 == 0 {
-				// ストップリミット時は初期化
+				// ストップリミット時はストップリミット初期化とインディケータの最適化
 				ai.StopLimit = 0.0
 				ai.UpdateOptimizeParams()
 			} else {
@@ -226,7 +227,7 @@ func (ai *AI) Trade() {
 			}
 			// ストップリミット(× 110%）
 			if eventLength%2 == 0 {
-				// ストップリミット時は初期化
+				// ストップリミット時はストップリミット初期化とインディケータの最適化
 				ai.StopLimit = 0.0
 				ai.UpdateOptimizeParams()
 			} else {
