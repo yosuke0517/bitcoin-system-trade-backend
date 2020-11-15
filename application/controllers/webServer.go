@@ -3,6 +3,7 @@ package controllers
 import (
 	"app/application/response"
 	"app/config"
+	"app/domain/model"
 	"app/domain/service"
 	"net/http"
 	"os"
@@ -246,5 +247,26 @@ func GetLatestCandle() http.HandlerFunc {
 			response.Success(w, time.Now())
 		}
 		response.Success(w, currentCandle)
+	}
+}
+
+/** イベント情報取得 */
+func GetEvents() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		productCode := r.URL.Query().Get("product_code")
+		isBackTest := r.URL.Query().Get("back_test")
+		backTest := false
+		// パラメータで指定がない場合は設定ファイルのものを使う
+		if productCode == "" {
+			productCode = os.Getenv("PRODUCT_CODE")
+		}
+		if isBackTest == "backTest" {
+			backTest = true
+		}
+		events := model.GetAllSignalEvents(backTest)
+		if events == nil {
+			response.Success(w, time.Now())
+		}
+		response.Success(w, events)
 	}
 }

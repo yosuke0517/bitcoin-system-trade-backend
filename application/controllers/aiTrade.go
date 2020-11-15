@@ -312,7 +312,7 @@ func (ai *AI) Trade() {
 				sellPoint++
 			}
 		}
-		eventLength := model.GetAllSignalEvents()
+		eventLength := model.GetAllSignalEventsCount()
 		// 1つでも買いのインディケータがあれば買い TODO イジる
 		if buyPoint > 0 || ai.StopLimit < df.Candles[i].Close {
 			_, isOrderCompleted := ai.Buy(df.Candles[i])

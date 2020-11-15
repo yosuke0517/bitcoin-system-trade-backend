@@ -78,6 +78,34 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	return &signalEvents
 }
 
+// BUY SELL BUY SELL等の情報を全て取得する
+func GetAllSignalEvents(backTest bool) *SignalEvents {
+	tableName := tableNameSignalEvents
+	if backTest {
+		tableName = tableNameSignalEventsBackTest
+	}
+	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
+	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"))
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	defer rows.Close()
+
+	var signalEvents SignalEvents
+	for rows.Next() {
+		var signalEvent SignalEvent
+		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size)
+		signalEvents.Signals = append(signalEvents.Signals, signalEvent)
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	return &signalEvents
+}
+
 /** 時間を指定して売買イベントの結果を取得する */
 func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
 	// MySqlの場合はサブクエリにasが必要
@@ -103,7 +131,7 @@ type Events struct {
 }
 
 /** 全ての売買イベント数を返す */
-func GetAllSignalEvents() int {
+func GetAllSignalEventsCount() int {
 	cmd := fmt.Sprintf(`SELECT count(*) FROM %s ;`, tableNameSignalEvents)
 	var events Events
 	err := domain.DB.QueryRow(cmd).Scan(&events.Length)
