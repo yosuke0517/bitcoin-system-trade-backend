@@ -81,7 +81,7 @@ func (ai *AI) UpdateOptimizeParams(isContinue bool) {
 /** bitflyer用のBUY */
 func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
 	if ai.BackTest {
-		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, false)
+		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, ai.BackTest)
 		return "", couldBuy
 	}
 	// トレード時間の妥当性チェック
@@ -143,7 +143,7 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 /** bitflyer用のSELL */
 func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
 	if ai.BackTest {
-		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, false)
+		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, ai.BackTest)
 		return "", couldSell
 	}
 
@@ -391,14 +391,14 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime 
 				order := listOrders[0]
 				if order.ChildOrderState == "COMPLETED" {
 					if order.Side == "BUY" {
-						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
+						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, executeTime, order.AveragePrice, order.Size, ai.BackTest)
 						if !couldBuy {
 							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
 						return couldBuy
 					}
 					if order.Side == "SELL" {
-						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
+						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, ai.BackTest)
 						if !couldSell {
 							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}

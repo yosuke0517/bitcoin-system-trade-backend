@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	tableNameSignalEvents = "SIGNAL_EVENTS"
+	tableNameSignalEvents         = "SIGNAL_EVENTS"
+	tableNameSignalEventsBackTest = "SIGNAL_EVENTS_BACK_TEST"
 )
 
 type SignalEvent struct {
@@ -23,8 +24,12 @@ type SignalEvent struct {
 }
 
 /** 売買のイベントを書き込む */
-func (s *SignalEvent) Save() bool {
-	cmd := fmt.Sprintf("INSERT INTO %s (time, product_code, side, price, size) VALUES (?, ?, ?, ?, ?)", tableNameSignalEvents)
+func (s *SignalEvent) Save(BackTest bool) bool {
+	tableName := tableNameSignalEvents
+	if BackTest {
+		tableName = tableNameSignalEventsBackTest
+	}
+	cmd := fmt.Sprintf("INSERT INTO %s (time, product_code, side, price, size) VALUES (?, ?, ?, ?, ?)", tableName)
 	ins, err := domain.DB.Prepare(cmd)
 	if err != nil {
 		log.Println(err)
@@ -141,7 +146,7 @@ func (s *SignalEvents) CanSell(time time.Time) bool {
 }
 
 /** 購入 */
-func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, save bool) bool {
+func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, BackTest bool) bool {
 	if !s.CanBuy(time) {
 		return false
 	}
@@ -153,15 +158,13 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 		Size:        size,
 	}
 	// バックテスト等でセーブしたくない場合があるためsaveフラグが必要
-	if save {
-		signalEvent.Save()
-	}
+	signalEvent.Save(BackTest)
 	s.Signals = append(s.Signals, signalEvent)
 	return true
 }
 
 /** 売却 */
-func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, save bool) bool {
+func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, BackTest bool) bool {
 
 	if !s.CanSell(time) {
 		return false
@@ -175,9 +178,7 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 		Size:        size,
 	}
 	// バックテスト等でセーブしたくない場合があるためsaveフラグが必要
-	if save {
-		signalEvent.Save()
-	}
+	signalEvent.Save(BackTest)
 	s.Signals = append(s.Signals, signalEvent)
 	return true
 }
