@@ -110,7 +110,7 @@ func SelectOne(productCode string, duration time.Duration, dateTime time.Time) *
 	var candle candleInfraStruct
 	err := domain.DB.QueryRow(cmd, dateTime).Scan(&candle.Time, &candle.Open, &candle.Close, &candle.High, &candle.Low, &candle.Volume)
 	if err != nil {
-		log.Println(err)
+		// log.Println(err)
 		return nil
 	}
 	return NewCandle(productCode, duration, candle.Time, candle.Open, candle.Close, candle.High, candle.Low, candle.Volume)

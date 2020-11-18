@@ -43,11 +43,11 @@ func init() {
 
 	Config = ConfigList{
 		Durations:        durations,
-		TradeDuration:    durations[cfg.Section("gotrading").Key("trade_duration").String()],
-		UsePercent:       cfg.Section("gotrading").Key("use_percent").MustFloat64(),
-		BackTest:         cfg.Section("gotrading").Key("back_test").MustBool(),
-		DataLimit:        cfg.Section("gotrading").Key("data_limit").MustInt(),
-		StopLimitPercent: cfg.Section("gotrading").Key("stop_limit_percent").MustFloat64(),
-		NumRanking:       cfg.Section("gotrading").Key("num_ranking").MustInt(),
+		TradeDuration:    durations[cfg.Section("gotrade").Key("trade_duration").String()],
+		UsePercent:       cfg.Section("gotrade").Key("use_percent").MustFloat64(),
+		BackTest:         cfg.Section("gotrade").Key("back_test").MustBool(),
+		DataLimit:        cfg.Section("gotrade").Key("data_limit").MustInt(),
+		StopLimitPercent: cfg.Section("gotrade").Key("stop_limit_percent").MustFloat64(),
+		NumRanking:       cfg.Section("gotrade").Key("num_ranking").MustInt(),
 	}
 }

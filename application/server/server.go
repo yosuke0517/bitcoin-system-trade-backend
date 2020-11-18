@@ -2,14 +2,25 @@ package server
 
 import (
 	"app/application/controllers"
+	"html/template"
 	"net/http"
 )
 
 func Serve() {
 	http.HandleFunc("/api/latestCandle", get(controllers.GetLatestCandle()))
-	http.HandleFunc("/api/allCandle", get(controllers.ApiCandleHandler()))
+	http.HandleFunc("/api/candle/", get(controllers.ApiCandleHandler()))
 	http.HandleFunc("/api/allEvents", get(controllers.GetEvents()))
+	http.HandleFunc("/api/chart", viewChartHandler)
 	http.ListenAndServe(":8080", nil)
+}
+
+var templates = template.Must(template.ParseFiles("views/chart.html"))
+
+func viewChartHandler(w http.ResponseWriter, r *http.Request) {
+	err := templates.ExecuteTemplate(w, "chart.html", nil)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // get GETリクエストを処理する

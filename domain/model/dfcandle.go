@@ -254,19 +254,16 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
 	// EMAを算出
 	emaValue1 := talib.Ema(df.Closes(), period1)
 	emaValue2 := talib.Ema(df.Closes(), period2)
-
 	// 指定の数までは値が0で入ってくるので飛ばす （7の場合の例：0,0,0,0,0,0,1005000,）
 	for i := 1; i < lenCandles; i++ {
 		if i < period1 || i < period2 {
 			continue
 		}
-
 		// ゴールデンクロス時は買い
 		if emaValue1[i-1] < emaValue2[i-1] && emaValue1[i] >= emaValue2[i] {
 			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
 		}
-
-		// デッドクロス時は売り
+		// デッドクロスは売り
 		if emaValue1[i-1] > emaValue2[i-1] && emaValue1[i] <= emaValue2[i] {
 			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
 		}
@@ -359,7 +356,6 @@ func (df *DataFrameCandle) BackTestIchimoku() *SignalEvents {
 
 	var signalEvents SignalEvents
 	tenkan, kijun, senkouA, senkouB, chikou := tradingalgo.IchimokuCloud(df.Closes())
-
 	for i := 1; i < lenCandles; i++ {
 		// 買い判定（三役好転）
 		if chikou[i-1] < df.Candles[i-1].High && chikou[i] >= df.Candles[i].High &&
@@ -367,7 +363,6 @@ func (df *DataFrameCandle) BackTestIchimoku() *SignalEvents {
 			tenkan[i] > kijun[i] {
 			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
 		}
-
 		// 売り判定（三役逆転）
 		if chikou[i-1] > df.Candles[i-1].Low && chikou[i] <= df.Candles[i].Low &&
 			senkouA[i] > df.Candles[i].High && senkouB[i] > df.Candles[i].High &&
@@ -398,7 +393,6 @@ func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSign
 
 	signalEvents := &SignalEvents{}
 	outMACD, outMACDSignal, _ := talib.Macd(df.Closes(), macdFastPeriod, macdSlowPeriod, macdSignalPeriod)
-
 	for i := 1; i < lenCandles; i++ {
 		// 買い判定
 		if outMACD[i] < 0 &&

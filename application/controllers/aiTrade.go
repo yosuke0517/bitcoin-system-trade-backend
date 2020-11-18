@@ -2,9 +2,11 @@ package controllers
 
 import (
 	"app/bitflyer"
+	"app/config"
 	"app/domain/model"
 	"app/domain/service"
 	"app/domain/tradingalgo"
+	"fmt"
 	"github.com/markcheno/go-talib"
 	"log"
 	"math"
@@ -39,12 +41,7 @@ var Ai *AI
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
 	var signalEvents *model.SignalEvents
-	if backTest {
-		signalEvents = model.NewSignalEvents()
-	} else {
-		// 本番の時はDBから最新のイベントを取ってくる（BUYなのかSELLなのか判定）
-		signalEvents = model.GetSignalEventsByCount(1)
-	}
+	signalEvents = model.GetSignalEventsByCount(1, config.Config.BackTest)
 	codes := strings.Split(productCode, "_")
 	Ai = &AI{
 		API:              apiClient,
@@ -81,7 +78,7 @@ func (ai *AI) UpdateOptimizeParams(isContinue bool) {
 /** bitflyer用のBUY */
 func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
 	if ai.BackTest {
-		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, ai.BackTest)
+		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true)
 		return "", couldBuy
 	}
 	// トレード時間の妥当性チェック
@@ -143,7 +140,7 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 /** bitflyer用のSELL */
 func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
 	if ai.BackTest {
-		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, ai.BackTest)
+		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true)
 		return "", couldSell
 	}
 
@@ -172,6 +169,7 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		"product_code": "FX_BTC_JPY",
 	}
 	positionRes, _ := ai.API.GetPositions(params)
+	fmt.Println("きてる？？")
 	// positionResが1以上の場合、注文を決済するのでSizeを格納する
 	if len(positionRes) != 0 {
 		size = positionRes[0].Size
@@ -202,6 +200,11 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 }
 
 func (ai *AI) Trade() {
+	eventLength := model.GetAllSignalEventsCount()
+	fmt.Println(eventLength)
+	if eventLength%2 == 0 {
+		go ai.UpdateOptimizeParams(true)
+	}
 	// goroutineの同時実行数を制御
 	isAcquire := ai.TradeSemaphore.TryAcquire(1)
 	if !isAcquire {
@@ -210,6 +213,7 @@ func (ai *AI) Trade() {
 	}
 	defer ai.TradeSemaphore.Release(1)
 	params := ai.OptimizedTradeParams
+	log.Println(params)
 	if params == nil {
 		return
 	}
@@ -312,7 +316,6 @@ func (ai *AI) Trade() {
 				sellPoint++
 			}
 		}
-		eventLength := model.GetAllSignalEventsCount()
 		// 1つでも買いのインディケータがあれば買い TODO イジる
 		if buyPoint > 0 || ai.StopLimit < df.Candles[i].Close {
 			_, isOrderCompleted := ai.Buy(df.Candles[i])
@@ -391,14 +394,14 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime 
 				order := listOrders[0]
 				if order.ChildOrderState == "COMPLETED" {
 					if order.Side == "BUY" {
-						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, executeTime, order.AveragePrice, order.Size, ai.BackTest)
+						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
 						if !couldBuy {
 							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
 						return couldBuy
 					}
 					if order.Side == "SELL" {
-						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, ai.BackTest)
+						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
 						if !couldSell {
 							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
