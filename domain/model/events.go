@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	tableNameSignalEvents         = "SIGNAL_EVENTS"
-	tableNameSignalEventsBackTest = "SIGNAL_EVENTS_BACK_TEST"
+	tableNameSignalEvents = "SIGNAL_EVENTS"
+	//tableNameSignalEventsBackTest = "SIGNAL_EVENTS_BACK_TEST"
 )
 
 type SignalEvent struct {
@@ -24,11 +24,8 @@ type SignalEvent struct {
 }
 
 /** 売買のイベントを書き込む */
-func (s *SignalEvent) Save(BackTest bool) bool {
+func (s *SignalEvent) Save() bool {
 	tableName := tableNameSignalEvents
-	if BackTest {
-		tableName = tableNameSignalEventsBackTest
-	}
 	cmd := fmt.Sprintf("INSERT INTO %s (time, product_code, side, price, size) VALUES (?, ?, ?, ?, ?)", tableName)
 	ins, err := domain.DB.Prepare(cmd)
 	if err != nil {
@@ -55,8 +52,9 @@ func NewSignalEvents() *SignalEvents {
 }
 
 // BUY SELL BUY SELL等の情報をlimitを指定して返却する
-func GetSignalEventsByCount(loadEvents int) *SignalEvents {
-	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableNameSignalEvents)
+func GetSignalEventsByCount(loadEvents int, backTest bool) *SignalEvents {
+	tableName := tableNameSignalEvents
+	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"), loadEvents)
 	if err != nil {
 		log.Println(err)
@@ -81,9 +79,6 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 // BUY SELL BUY SELL等の情報を全て取得する
 func GetAllSignalEvents(backTest bool) *SignalEvents {
 	tableName := tableNameSignalEvents
-	if backTest {
-		tableName = tableNameSignalEventsBackTest
-	}
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"))
 	if err != nil {
@@ -108,8 +103,9 @@ func GetAllSignalEvents(backTest bool) *SignalEvents {
 
 /** 時間を指定して売買イベントの結果を取得する */
 func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
+	tableName := tableNameSignalEvents
 	// MySqlの場合はサブクエリにasが必要
-	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE time >= ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableNameSignalEvents)
+	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE time >= ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, timeTime)
 	if err != nil {
 		log.Println(err)
@@ -132,7 +128,8 @@ type Events struct {
 
 /** 全ての売買イベント数を返す */
 func GetAllSignalEventsCount() int {
-	cmd := fmt.Sprintf(`SELECT count(*) FROM %s ;`, tableNameSignalEvents)
+	tableName := tableNameSignalEvents
+	cmd := fmt.Sprintf(`SELECT count(*) FROM %s ;`, tableName)
 	var events Events
 	err := domain.DB.QueryRow(cmd).Scan(&events.Length)
 	if err != nil {
@@ -151,8 +148,8 @@ func (s *SignalEvents) CanBuy(time time.Time) bool {
 	}
 
 	lastSignal := s.Signals[lenSignals-1]
-	// SignalEventsの最後がSELL, 最後のシグナルより後の時間であるかのチェック
-	if lastSignal.Side == "SELL" && lastSignal.Time.Before(time) {
+	// SignalEventsの最後がSELLまたは取引が完結しているかつ、最後のシグナルより後の時間であるかのチェック
+	if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
 		return true
 	}
 	return false
@@ -162,20 +159,21 @@ func (s *SignalEvents) CanBuy(time time.Time) bool {
 func (s *SignalEvents) CanSell(time time.Time) bool {
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
-		return false
+		return true
 	}
 
 	lastSignal := s.Signals[lenSignals-1]
 	// SignalEventsの最後がSELL, 最後のシグナルより後の時間であるかのチェック
-	if lastSignal.Side == "BUY" && lastSignal.Time.Before(time) {
+	if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
 		return true
 	}
 	return false
 }
 
 /** 購入 */
-func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, BackTest bool) bool {
-	if !s.CanBuy(time) {
+func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, save bool) bool {
+	canBuy := s.CanBuy(time)
+	if !canBuy {
 		return false
 	}
 	signalEvent := SignalEvent{
@@ -185,16 +183,19 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 		Price:       price,
 		Size:        size,
 	}
-	// バックテスト等でセーブしたくない場合があるためsaveフラグが必要
-	signalEvent.Save(BackTest)
+	// バックテスト等でセーブしたくない場合があるためBackTestフラグが必要
+	if save {
+		log.Printf("イベントを保存します：%s", signalEvent.Side)
+		signalEvent.Save()
+	}
 	s.Signals = append(s.Signals, signalEvent)
 	return true
 }
 
 /** 売却 */
-func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, BackTest bool) bool {
-
-	if !s.CanSell(time) {
+func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, save bool) bool {
+	canSell := s.CanSell(time)
+	if !canSell {
 		return false
 	}
 
@@ -205,8 +206,11 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 		Price:       price,
 		Size:        size,
 	}
-	// バックテスト等でセーブしたくない場合があるためsaveフラグが必要
-	signalEvent.Save(BackTest)
+	// バックテスト等でセーブしたくない場合があるためBackTestフラグが必要
+	if save {
+		log.Printf("イベントを保存します：%s", signalEvent.Side)
+		signalEvent.Save()
+	}
 	s.Signals = append(s.Signals, signalEvent)
 	return true
 }
@@ -216,24 +220,21 @@ func (s *SignalEvents) Profit() float64 {
 	beforeSell := 0.0
 	isHolding := false
 
-	// イベントの数が奇数のときは保有判定
-	if len(s.Signals)%1 == 0 {
-		isHolding = true
-	}
-
 	for i, signalEvent := range s.Signals {
-		if i == 0 && signalEvent.Side == "SELL" {
-			continue
+		if i%2 == 0 {
+			isHolding = true
+		} else {
+			isHolding = false
 		}
-		if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && isHolding == false {
+		if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 1 {
 			total += signalEvent.Price * signalEvent.Size
 			beforeSell = total
 		}
-		if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && isHolding == true {
+		if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 0 {
 			total -= signalEvent.Price * signalEvent.Size
 		}
 	}
-	if isHolding == true {
+	if isHolding {
 		return beforeSell
 	}
 	return total
