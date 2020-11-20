@@ -142,14 +142,23 @@ func GetAllSignalEventsCount() int {
 
 /** 買えるかどうかの判定 */
 func (s *SignalEvents) CanBuy(time time.Time) bool {
+	//lenSignals := len(s.Signals)
+	//if lenSignals == 0 {
+	//	return true
+	//}
+	//
+	//lastSignal := s.Signals[lenSignals-1]
+	//// SignalEventsの最後がSELLまたは取引が完結しているかつ、最後のシグナルより後の時間であるかのチェック
+	//if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
+	//	return true
+	//}
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
 		return true
 	}
 
 	lastSignal := s.Signals[lenSignals-1]
-	// SignalEventsの最後がSELLまたは取引が完結しているかつ、最後のシグナルより後の時間であるかのチェック
-	if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
+	if lastSignal.Side == "SELL" && lastSignal.Time.Before(time) {
 		return true
 	}
 	return false
@@ -157,14 +166,23 @@ func (s *SignalEvents) CanBuy(time time.Time) bool {
 
 /** 売れるかどうかの判定 */
 func (s *SignalEvents) CanSell(time time.Time) bool {
+	//lenSignals := len(s.Signals)
+	//if lenSignals == 0 {
+	//	return true
+	//}
+	//
+	//lastSignal := s.Signals[lenSignals-1]
+	//// SignalEventsの最後がSELL, 最後のシグナルより後の時間であるかのチェック
+	//if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
+	//	return true
+	//}
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
-		return true
+		return false
 	}
 
 	lastSignal := s.Signals[lenSignals-1]
-	// SignalEventsの最後がSELL, 最後のシグナルより後の時間であるかのチェック
-	if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
+	if lastSignal.Side == "BUY" && lastSignal.Time.Before(time) {
 		return true
 	}
 	return false

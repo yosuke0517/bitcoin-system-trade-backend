@@ -202,9 +202,9 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 func (ai *AI) Trade() {
 	eventLength := model.GetAllSignalEventsCount()
 	fmt.Println(eventLength)
-	if eventLength%2 == 0 {
-		go ai.UpdateOptimizeParams(true)
-	}
+	//if eventLength%2 == 0 {
+	//	go ai.UpdateOptimizeParams(true)
+	//}
 	// goroutineの同時実行数を制御
 	isAcquire := ai.TradeSemaphore.TryAcquire(1)
 	if !isAcquire {
@@ -317,35 +317,51 @@ func (ai *AI) Trade() {
 			}
 		}
 		// 1つでも買いのインディケータがあれば買い TODO イジる
-		if buyPoint > 0 || ai.StopLimit < df.Candles[i].Close {
+		//if buyPoint > 0 || ai.StopLimit < df.Candles[i].Close {
+		//	_, isOrderCompleted := ai.Buy(df.Candles[i])
+		//	if !isOrderCompleted {
+		//		continue
+		//	}
+		//	// 順張りトレード
+		//	// ストップリミット(× 90%）
+		//	if eventLength%2 == 0 {
+		//		// ストップリミット時はストップリミット初期化とインディケータの最適化
+		//		ai.StopLimit = 0.0
+		//		go ai.UpdateOptimizeParams(true)
+		//	} else {
+		//		ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+		//	}
+		//}
+		//// 空売り
+		//if sellPoint > 0 || ai.StopLimit > df.Candles[i].Close {
+		//	_, isOrderCompleted := ai.Sell(df.Candles[i])
+		//	if !isOrderCompleted {
+		//		continue
+		//	}
+		//	// ストップリミット(× 110%）
+		//	if eventLength%2 == 0 {
+		//		// ストップリミット時はストップリミット初期化とインディケータの最適化
+		//		ai.StopLimit = 0.0
+		//		go ai.UpdateOptimizeParams(true)
+		//	} else {
+		//		ai.StopLimit = df.Candles[i].Close * (1.0 + (1.0 - ai.StopLimitPercent))
+		//	}
+		//}
+		if buyPoint > 0 {
 			_, isOrderCompleted := ai.Buy(df.Candles[i])
 			if !isOrderCompleted {
 				continue
 			}
-			// 順張りトレード
-			// ストップリミット(× 90%）
-			if eventLength%2 == 0 {
-				// ストップリミット時はストップリミット初期化とインディケータの最適化
-				ai.StopLimit = 0.0
-				go ai.UpdateOptimizeParams(true)
-			} else {
-				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
-			}
+			ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 		}
-		// 空売り
+
 		if sellPoint > 0 || ai.StopLimit > df.Candles[i].Close {
 			_, isOrderCompleted := ai.Sell(df.Candles[i])
 			if !isOrderCompleted {
 				continue
 			}
-			// ストップリミット(× 110%）
-			if eventLength%2 == 0 {
-				// ストップリミット時はストップリミット初期化とインディケータの最適化
-				ai.StopLimit = 0.0
-				go ai.UpdateOptimizeParams(true)
-			} else {
-				ai.StopLimit = df.Candles[i].Close * (1.0 + (1.0 - ai.StopLimitPercent))
-			}
+			ai.StopLimit = 0.0
+			ai.UpdateOptimizeParams(true)
 		}
 	}
 }
