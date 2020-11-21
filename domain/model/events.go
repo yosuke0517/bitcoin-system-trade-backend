@@ -156,7 +156,7 @@ func (s *SignalEvents) CanBuy(time time.Time) bool {
 	if lenSignals == 0 {
 		return true
 	}
-
+	// TODO ショート対応
 	lastSignal := s.Signals[lenSignals-1]
 	if lastSignal.Side == "SELL" && lastSignal.Time.Before(time) {
 		return true
@@ -182,6 +182,7 @@ func (s *SignalEvents) CanSell(time time.Time) bool {
 	}
 
 	lastSignal := s.Signals[lenSignals-1]
+	// TODO ショート対応
 	if lastSignal.Side == "BUY" && lastSignal.Time.Before(time) {
 		return true
 	}
@@ -234,25 +235,47 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 }
 
 func (s *SignalEvents) Profit() float64 {
+	//total := 0.0
+	//beforeSell := 0.0
+	//isHolding := false
+	//
+	//for i, signalEvent := range s.Signals {
+	//	if i%2 == 0 {
+	//		isHolding = true
+	//	} else {
+	//		isHolding = false
+	//	}
+	//	if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 1 {
+	//		total += signalEvent.Price * signalEvent.Size
+	//		beforeSell = total
+	//	}
+	//	if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 0 {
+	//		total -= signalEvent.Price * signalEvent.Size
+	//	}
+	//}
+	//if isHolding {
+	//	return beforeSell
+	//}
+	//return total
 	total := 0.0
 	beforeSell := 0.0
 	isHolding := false
-
+	// TODO ショート対応
 	for i, signalEvent := range s.Signals {
-		if i%2 == 0 {
-			isHolding = true
-		} else {
-			isHolding = false
+		if i == 0 && signalEvent.Side == "SELL" {
+			continue
 		}
-		if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 1 {
+		if signalEvent.Side == "BUY" {
+			total -= signalEvent.Price * signalEvent.Size
+			isHolding = true
+		}
+		if signalEvent.Side == "SELL" {
 			total += signalEvent.Price * signalEvent.Size
+			isHolding = false
 			beforeSell = total
 		}
-		if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 0 {
-			total -= signalEvent.Price * signalEvent.Size
-		}
 	}
-	if isHolding {
+	if isHolding == true {
 		return beforeSell
 	}
 	return total

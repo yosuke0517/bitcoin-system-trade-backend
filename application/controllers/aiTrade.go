@@ -38,6 +38,9 @@ type AI struct {
 // TODO mutex, singleton
 var Ai *AI
 
+// オープン時のsizeを保持する
+var size float64
+
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
 	var signalEvents *model.SignalEvents
@@ -99,14 +102,14 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		return
 	}
 	// 証拠金の4倍でどれだけ買えるか調査
-	size := 1.0 / (ticker.BestAsk / useCurrency)
+	size = 1.0 / (ticker.BestAsk / useCurrency)
 	size = ai.AdjustSize(size)
 
 	params := map[string]string{
 		"product_code": "FX_BTC_JPY",
 	}
 	positionRes, _ := ai.API.GetPositions(params)
-	// positionResが1以上の場合、注文を決済するのでSizeを格納する
+	// (ポジションがある場合、配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
 	if len(positionRes) != 0 {
 		size = positionRes[0].Size
 	}
@@ -152,25 +155,24 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		return
 	}
 
-	// 使用できる証拠金と取引中かどうかの判定
-	availableCurrency := ai.GetAvailableBalance()
+	// TODO ショート用 使用できる証拠金と取引中かどうかの判定
+	// availableCurrency := ai.GetAvailableBalance()
 	// 使用して良い金額は証拠金に3.7をかけた数とする
-	useCurrency := availableCurrency * ai.UsePercent
-	ticker, err := ai.API.GetTicker(ai.ProductCode)
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	//useCurrency := availableCurrency * ai.UsePercent
+	//ticker, err := ai.API.GetTicker(ai.ProductCode)
+	//if err != nil {
+	//	log.Println(err)
+	//	return
+	//}
 	// 証拠金の4倍でどれだけ買えるか調査
-	size := 1.0 / (ticker.BestAsk / useCurrency)
-	size = ai.AdjustSize(size)
+	//size := 1.0 / (ticker.BestAsk / useCurrency)
+	//size = ai.AdjustSize(size)
 
 	params := map[string]string{
 		"product_code": "FX_BTC_JPY",
 	}
 	positionRes, _ := ai.API.GetPositions(params)
-	fmt.Println("きてる？？")
-	// positionResが1以上の場合、注文を決済するのでSizeを格納する
+	// (ポジションがある場合、配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
 	if len(positionRes) != 0 {
 		size = positionRes[0].Size
 	}
@@ -202,9 +204,10 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 func (ai *AI) Trade() {
 	eventLength := model.GetAllSignalEventsCount()
 	fmt.Println(eventLength)
-	//if eventLength%2 == 0 {
-	//	go ai.UpdateOptimizeParams(true)
-	//}
+	// 取引が完了していたらParamsを更新する
+	if eventLength%2 == 0 {
+		go ai.UpdateOptimizeParams(true)
+	}
 	// goroutineの同時実行数を制御
 	isAcquire := ai.TradeSemaphore.TryAcquire(1)
 	if !isAcquire {
@@ -316,7 +319,7 @@ func (ai *AI) Trade() {
 				sellPoint++
 			}
 		}
-		// 1つでも買いのインディケータがあれば買い TODO イジる
+		// 1つでも買いのインディケータがあれば買い
 		//if buyPoint > 0 || ai.StopLimit < df.Candles[i].Close {
 		//	_, isOrderCompleted := ai.Buy(df.Candles[i])
 		//	if !isOrderCompleted {
@@ -347,6 +350,7 @@ func (ai *AI) Trade() {
 		//		ai.StopLimit = df.Candles[i].Close * (1.0 + (1.0 - ai.StopLimitPercent))
 		//	}
 		//}
+		// TODO ショート対応
 		if buyPoint > 0 {
 			_, isOrderCompleted := ai.Buy(df.Candles[i])
 			if !isOrderCompleted {
