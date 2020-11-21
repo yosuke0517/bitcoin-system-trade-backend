@@ -38,7 +38,6 @@ type AI struct {
 // TODO mutex, singleton
 var Ai *AI
 
-// オープン時のsizeを保持する
 var size float64
 
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
@@ -92,9 +91,8 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 	if !ai.SignalEvents.CanBuy(candle.Time) {
 		return
 	}
-	// 使用できる証拠金と取引中かどうかの判定
 	availableCurrency := ai.GetAvailableBalance()
-	// 使用して良い金額は証拠金に3.7をかけた数とする
+	// 使用して良い金額は証拠金に3.5をかけた数とする
 	useCurrency := availableCurrency * ai.UsePercent
 	ticker, err := ai.API.GetTicker(ai.ProductCode)
 	if err != nil {
@@ -109,11 +107,13 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		"product_code": "FX_BTC_JPY",
 	}
 	positionRes, _ := ai.API.GetPositions(params)
-	// (ポジションがある場合、配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
-	if len(positionRes) != 0 {
-		size = positionRes[0].Size
+	// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
+	if len(positionRes) > 0 {
+		size = 0.0
+		for _, position := range positionRes {
+			size += position.Size
+		}
 	}
-
 	order := &bitflyer.Order{
 		ProductCode:     ai.ProductCode,
 		ChildOrderType:  "MARKET",
@@ -155,26 +155,28 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		return
 	}
 
-	// TODO ショート用 使用できる証拠金と取引中かどうかの判定
-	// availableCurrency := ai.GetAvailableBalance()
-	// 使用して良い金額は証拠金に3.7をかけた数とする
-	//useCurrency := availableCurrency * ai.UsePercent
-	//ticker, err := ai.API.GetTicker(ai.ProductCode)
-	//if err != nil {
-	//	log.Println(err)
-	//	return
-	//}
+	availableCurrency := ai.GetAvailableBalance()
+	// 使用して良い金額は証拠金に3.5をかけた数とする
+	useCurrency := availableCurrency * ai.UsePercent
+	ticker, err := ai.API.GetTicker(ai.ProductCode)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	// 証拠金の4倍でどれだけ買えるか調査
-	//size := 1.0 / (ticker.BestAsk / useCurrency)
-	//size = ai.AdjustSize(size)
+	size = 1.0 / (ticker.BestAsk / useCurrency)
+	size = ai.AdjustSize(size)
 
 	params := map[string]string{
 		"product_code": "FX_BTC_JPY",
 	}
 	positionRes, _ := ai.API.GetPositions(params)
-	// (ポジションがある場合、配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
-	if len(positionRes) != 0 {
-		size = positionRes[0].Size
+	// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
+	if len(positionRes) > 0 {
+		size = 0.0
+		for _, position := range positionRes {
+			size += position.Size
+		}
 	}
 
 	order := &bitflyer.Order{
