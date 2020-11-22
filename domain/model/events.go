@@ -245,11 +245,22 @@ func (s *SignalEvents) Profit() float64 {
 		if i == 0 && signalEvent.Side == "SELL" {
 			continue
 		}
-		if signalEvent.Side == "BUY" {
+		//if signalEvent.Side == "BUY" {
+		//	total -= signalEvent.Price * signalEvent.Size
+		//	isHolding = true
+		//}
+		// オープンはマイナス
+		if i%2 == 0 {
 			total -= signalEvent.Price * signalEvent.Size
 			isHolding = true
 		}
-		if signalEvent.Side == "SELL" {
+		//if signalEvent.Side == "SELL" {
+		//	total += signalEvent.Price * signalEvent.Size
+		//	isHolding = false
+		//	beforeSell = total
+		//}
+		// クローズでプラス
+		if i%2 == 1 {
 			total += signalEvent.Price * signalEvent.Size
 			isHolding = false
 			beforeSell = total
