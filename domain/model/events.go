@@ -52,7 +52,7 @@ func NewSignalEvents() *SignalEvents {
 }
 
 // BUY SELL BUY SELL等の情報をlimitを指定して返却する
-func GetSignalEventsByCount(loadEvents int, backTest bool) *SignalEvents {
+func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	tableName := tableNameSignalEvents
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"), loadEvents)

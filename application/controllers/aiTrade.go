@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"app/bitflyer"
-	"app/config"
 	"app/domain/model"
 	"app/domain/service"
 	"app/domain/tradingalgo"
@@ -43,7 +42,7 @@ var size float64
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
 	var signalEvents *model.SignalEvents
-	signalEvents = model.GetSignalEventsByCount(1, config.Config.BackTest)
+	signalEvents = model.GetSignalEventsByCount(1)
 	codes := strings.Split(productCode, "_")
 	Ai = &AI{
 		API:              apiClient,
@@ -323,22 +322,43 @@ func (ai *AI) Trade() {
 				sellPoint++
 			}
 		}
-		// 1つでも買いのインディケータがあれば買い
-		if buyPoint > 0 {
-			_, isOrderCompleted := ai.Buy(df.Candles[i])
-			if !isOrderCompleted {
-				continue
+		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
+		if eventLength%2 == 0 {
+			// 1つでも買いのインディケータがあれば買い
+			if buyPoint > 1 {
+				_, isOrderCompleted := ai.Buy(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 			}
-			ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+			if sellPoint > 1 {
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+			}
 		}
-
-		if sellPoint > 0 || ai.StopLimit > df.Candles[i].Close {
-			_, isOrderCompleted := ai.Sell(df.Candles[i])
-			if !isOrderCompleted {
-				continue
+		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
+		if eventLength%2 == 1 {
+			// 1つでも買いのインディケータがあれば買い
+			if buyPoint > 0 {
+				_, isOrderCompleted := ai.Buy(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
 			}
-			ai.StopLimit = 0.0
-			ai.UpdateOptimizeParams(true)
+			if sellPoint > 0 {
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
+			}
 		}
 	}
 }
