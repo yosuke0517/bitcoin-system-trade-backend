@@ -12,7 +12,6 @@ import (
 
 const (
 	tableNameSignalEvents = "SIGNAL_EVENTS"
-	//tableNameSignalEventsBackTest = "SIGNAL_EVENTS_BACK_TEST"
 )
 
 type SignalEvent struct {
@@ -215,53 +214,30 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 }
 
 func (s *SignalEvents) Profit() float64 {
-	//total := 0.0
-	//beforeSell := 0.0
-	//isHolding := false
-	//
-	//for i, signalEvent := range s.Signals {
-	//	if i%2 == 0 {
-	//		isHolding = true
-	//	} else {
-	//		isHolding = false
-	//	}
-	//	if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 1 {
-	//		total += signalEvent.Price * signalEvent.Size
-	//		beforeSell = total
-	//	}
-	//	if (signalEvent.Side == "BUY" || signalEvent.Side == "SELL") && i%2 == 0 {
-	//		total -= signalEvent.Price * signalEvent.Size
-	//	}
-	//}
-	//if isHolding {
-	//	return beforeSell
-	//}
-	//return total
 	total := 0.0
 	beforeSell := 0.0
 	isHolding := false
 	// TODO ショート対応
 	for i, signalEvent := range s.Signals {
-		//if i == 0 && signalEvent.Side == "SELL" {
-		//	continue
-		//}
-		//if signalEvent.Side == "BUY" {
-		//	total -= signalEvent.Price * signalEvent.Size
-		//	isHolding = true
-		//}
-		// オープンはマイナス
-		if i%2 == 0 {
+		// ロングオープンはマイナス
+		if i%2 == 0 && signalEvent.Side == "BUY" {
 			total -= signalEvent.Price * signalEvent.Size
 			isHolding = true
 		}
-		//if signalEvent.Side == "SELL" {
-		//	total += signalEvent.Price * signalEvent.Size
-		//	isHolding = false
-		//	beforeSell = total
-		//}
-		// クローズでプラス
-		if i%2 == 1 {
+		// ロングクローズでプラス
+		if i%2 == 1 && signalEvent.Side == "SELL" {
 			total += signalEvent.Price * signalEvent.Size
+			isHolding = false
+			beforeSell = total
+		}
+		// ショートオープンはプラス
+		if i%2 == 0 && signalEvent.Side == "SELL" {
+			total += signalEvent.Price * signalEvent.Size
+			isHolding = true
+		}
+		// ショートクローズでマイナス
+		if i%2 == 1 && signalEvent.Side == "BUY" {
+			total -= signalEvent.Price * signalEvent.Size
 			isHolding = false
 			beforeSell = total
 		}
