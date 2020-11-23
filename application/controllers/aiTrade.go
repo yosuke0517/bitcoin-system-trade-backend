@@ -231,8 +231,8 @@ func (ai *AI) Trade() {
 	var emaValues2 []float64
 	var emaValues3 []float64
 	if params.EmaEnable {
-		emaValues1 = talib.Ema(df.Closes(), params.EmaPeriod1)
-		emaValues2 = talib.Ema(df.Closes(), params.EmaPeriod2)
+		emaValues1 = talib.Ema(df.Closes(), 7)
+		emaValues2 = talib.Ema(df.Closes(), 14)
 		emaValues3 = talib.Ema(df.Closes(), 50)
 	}
 
@@ -266,6 +266,16 @@ func (ai *AI) Trade() {
 		buyPoint, sellPoint := 0, 0
 		emaBuyPoint, emaSellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
+		//if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
+		//	// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
+		//	if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
+		//		buyPoint++
+		//	}
+		//	// デッドクロス
+		//	if emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
+		//		sellPoint++
+		//	}
+		//}
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
 			if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
@@ -329,14 +339,14 @@ func (ai *AI) Trade() {
 		if eventLength%2 == 0 {
 			// 1つでも買いのインディケータがあれば買い
 			if emaBuyPoint > 0 {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
 				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 			}
 			if emaSellPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				_, isOrderCompleted := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
@@ -347,7 +357,7 @@ func (ai *AI) Trade() {
 		if eventLength%2 == 1 {
 			// 1つでも買いのインディケータがあれば買い
 			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
@@ -355,7 +365,7 @@ func (ai *AI) Trade() {
 				ai.UpdateOptimizeParams(true)
 			}
 			if sellPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				_, isOrderCompleted := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
