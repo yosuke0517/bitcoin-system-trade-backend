@@ -229,9 +229,11 @@ func (ai *AI) Trade() {
 	// EMA
 	var emaValues1 []float64
 	var emaValues2 []float64
+	var emaValues3 []float64
 	if params.EmaEnable {
 		emaValues1 = talib.Ema(df.Closes(), params.EmaPeriod1)
 		emaValues2 = talib.Ema(df.Closes(), params.EmaPeriod2)
+		emaValues3 = talib.Ema(df.Closes(), 50)
 	}
 
 	// ボリンジャーバンド
@@ -262,15 +264,16 @@ func (ai *AI) Trade() {
 	for i := 1; i < lenCandles; i++ {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
+		emaBuyPoint, emaSellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
-			if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
-				buyPoint++
+			if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
+				emaBuyPoint++
 			}
 			// デッドクロス
-			if emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
-				sellPoint++
+			if emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
+				emaSellPoint++
 			}
 		}
 
@@ -325,14 +328,14 @@ func (ai *AI) Trade() {
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
 		if eventLength%2 == 0 {
 			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > 0 {
+			if emaBuyPoint > 0 {
 				_, isOrderCompleted := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
 				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 			}
-			if sellPoint > 0 {
+			if emaSellPoint > 0 {
 				_, isOrderCompleted := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue

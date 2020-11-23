@@ -418,9 +418,9 @@ func (df *DataFrameCandle) OptimizeMacd() (performance float64, bestMacdFastPeri
 	bestMacdSlowPeriod = 26
 	bestMacdSignalPeriod = 9
 
-	for fastPeriod := 10; fastPeriod < 19; fastPeriod++ {
-		for slowPeriod := 20; slowPeriod < 30; slowPeriod++ {
-			for signalPeriod := 5; signalPeriod < 15; signalPeriod++ {
+	for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
+		for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
+			for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
 				signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod)
 				if signalEvents == nil {
 					continue
@@ -470,7 +470,7 @@ func (df *DataFrameCandle) OptimizeRsi() (performance float64, bestPeriod int, b
 	bestPeriod = 14
 	bestBuyThread, bestSellThread = 30.0, 70.0
 
-	for period := 5; period < 25; period++ {
+	for period := 5; period < 30; period++ {
 		signalEvents := df.BackTestRsi(period, bestBuyThread, bestSellThread)
 		if signalEvents == nil {
 			continue
