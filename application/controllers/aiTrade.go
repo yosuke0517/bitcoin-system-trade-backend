@@ -325,14 +325,14 @@ func (ai *AI) Trade() {
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
 		if eventLength%2 == 0 {
 			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > 1 {
+			if buyPoint > 0 {
 				_, isOrderCompleted := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
 				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 			}
-			if sellPoint > 1 {
+			if sellPoint > 0 {
 				_, isOrderCompleted := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue

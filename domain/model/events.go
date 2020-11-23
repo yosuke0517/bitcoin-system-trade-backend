@@ -242,9 +242,9 @@ func (s *SignalEvents) Profit() float64 {
 	isHolding := false
 	// TODO ショート対応
 	for i, signalEvent := range s.Signals {
-		if i == 0 && signalEvent.Side == "SELL" {
-			continue
-		}
+		//if i == 0 && signalEvent.Side == "SELL" {
+		//	continue
+		//}
 		//if signalEvent.Side == "BUY" {
 		//	total -= signalEvent.Price * signalEvent.Size
 		//	isHolding = true
