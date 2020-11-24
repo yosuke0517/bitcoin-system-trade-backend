@@ -264,7 +264,6 @@ func (ai *AI) Trade() {
 	for i := 1; i < lenCandles; i++ {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
-		emaBuyPoint, emaSellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
 		//if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 		//	// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
@@ -279,11 +278,11 @@ func (ai *AI) Trade() {
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
 			if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
-				emaBuyPoint++
+				buyPoint++
 			}
 			// デッドクロス
 			if emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
-				emaSellPoint++
+				sellPoint++
 			}
 		}
 
