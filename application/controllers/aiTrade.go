@@ -32,12 +32,17 @@ type AI struct {
 	StopLimitPercent     float64
 	BackTest             bool
 	StartTrade           time.Time
+	Profit               float64
 }
 
 // TODO mutex, singleton
 var Ai *AI
 
 var size float64
+
+var sellOpen bool
+
+var buyOpen bool
 
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
@@ -265,16 +270,6 @@ func (ai *AI) Trade() {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
-		//if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
-		//	// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
-		//	if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
-		//		buyPoint++
-		//	}
-		//	// デッドクロス
-		//	if emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
-		//		sellPoint++
-		//	}
-		//}
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
 			if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
@@ -334,40 +329,69 @@ func (ai *AI) Trade() {
 				sellPoint++
 			}
 		}
+		eventLength := model.GetAllSignalEventsCount()
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
 		if eventLength%2 == 0 {
 			// 1つでも買いのインディケータがあれば買い
 			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
-			}
-			if sellPoint > 0 {
 				_, isOrderCompleted := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				buyOpen = true
+				ai.Profit = df.Candles[i].Close * 1.001
+				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+			}
+			if sellPoint > 0 {
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				sellOpen = true
+				ai.Profit = df.Candles[i].Close * 0.999
 				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 			}
 		}
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
 		if eventLength%2 == 1 {
-			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				ai.StopLimit = 0.0
-				ai.UpdateOptimizeParams(true)
-			}
-			if sellPoint > 0 {
+			// sellOpenのクローズ
+			if sellOpen == true && df.Candles[i].Close <= ai.Profit {
 				_, isOrderCompleted := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				sellOpen = false
+				ai.Profit = 0.0
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
+			}
+			// buyOpenのクローズ
+			if buyOpen == true && df.Candles[i].Close >= ai.Profit {
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				buyOpen = false
+				ai.Profit = 0.0
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
+			}
+			// 1つでも買いのインディケータがあれば買い
+			if buyPoint > 0 {
+				_, isOrderCompleted := ai.Buy(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				sellOpen = false
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
+			}
+			if sellPoint > 0 {
+				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				buyOpen = false
 				ai.StopLimit = 0.0
 				ai.UpdateOptimizeParams(true)
 			}

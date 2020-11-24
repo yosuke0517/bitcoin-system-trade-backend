@@ -35,10 +35,11 @@ func init() {
 	}
 	durations := map[string]time.Duration{
 		//"1s":  time.Second,
-		//"30s": 30 * time.Second,
-		"1m": time.Minute,
-		"5m": time.Minute * 5,
-		"1h": time.Hour,
+		//"15s": 15 * time.Second,
+		"30s": time.Second * 30,
+		"1m":  time.Minute,
+		"5m":  time.Minute * 5,
+		"1h":  time.Hour,
 	}
 
 	Config = ConfigList{
