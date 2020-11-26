@@ -82,10 +82,11 @@ func (ai *AI) UpdateOptimizeParams(isContinue bool) {
 }
 
 /** bitflyer用のBUY */
-func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
+func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
+	orderPrice = 0.0
 	if ai.BackTest {
 		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true)
-		return "", couldBuy
+		return "", couldBuy, orderPrice
 	}
 	// トレード時間の妥当性チェック
 	if ai.StartTrade.After(candle.Time) {
@@ -141,15 +142,16 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		return
 	}
 
-	isOrderCompleted = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
-	return childOrderAcceptanceID, isOrderCompleted
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
 /** bitflyer用のSELL */
-func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
+func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
+	orderPrice = 0.0
 	if ai.BackTest {
 		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true)
-		return "", couldSell
+		return "", couldSell, orderPrice
 	}
 
 	if ai.StartTrade.After(candle.Time) {
@@ -205,12 +207,13 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		return
 	}
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
-	isOrderCompleted = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
-	return childOrderAcceptanceID, isOrderCompleted
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
-func (ai *AI) Trade() {
+func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	eventLength := model.GetAllSignalEventsCount()
+	price := ticker.GetMidPrice()
 	fmt.Println(eventLength)
 	// 取引が完了していたらParamsを更新する
 	if eventLength%2 == 0 {
@@ -329,72 +332,89 @@ func (ai *AI) Trade() {
 				sellPoint++
 			}
 		}
-		eventLength := model.GetAllSignalEventsCount()
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
-		if eventLength%2 == 0 {
+		if sellOpen == false && buyOpen == false {
 			// 1つでも買いのインディケータがあれば買い
 			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				buyOpen = true
-				ai.Profit = df.Candles[i].Close * 1.001
-				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
-			}
-			if sellPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
+				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
 				sellOpen = true
-				ai.Profit = df.Candles[i].Close * 0.999
-				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+				ai.Profit = math.Floor(orderPrice*0.9993*10000) / 10000
+				ai.StopLimit = df.Candles[i].Close * (1 + (1 - ai.StopLimitPercent))
+				log.Println("sellOpenのオープン")
+				log.Println(ai.StopLimit)
+				log.Println(orderPrice)
+				log.Println(ai.Profit)
 			}
-		}
-		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
-		if eventLength%2 == 1 {
-			// sellOpenのクローズ
-			if sellOpen == true && df.Candles[i].Close <= ai.Profit {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
+			if sellPoint > 0 {
+				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				buyOpen = true
+				ai.Profit = math.Floor(orderPrice*1.0007*10000) / 10000
+				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+				log.Println("buyOpenのオープン")
+				log.Println(ai.StopLimit)
+				log.Println(orderPrice)
+				log.Println(ai.Profit)
+			}
+			fmt.Println("price")
+			fmt.Println(price)
+		}
+		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
+		if sellOpen == true || buyOpen == true {
+			// sellOpenのクローズ
+			if sellOpen == true && (price <= ai.Profit || price >= ai.StopLimit) {
+				_, isOrderCompleted, _ := ai.Buy(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				log.Println("sellOpenのクローズ")
+				log.Println(ai.StopLimit)
+				log.Println(ai.Profit)
 				sellOpen = false
 				ai.Profit = 0.0
 				ai.StopLimit = 0.0
 				ai.UpdateOptimizeParams(true)
 			}
 			// buyOpenのクローズ
-			if buyOpen == true && df.Candles[i].Close >= ai.Profit {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
+			if buyOpen == true && (price >= ai.Profit || price <= ai.StopLimit) {
+				_, isOrderCompleted, _ := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				log.Println("buyOpenのクローズ")
+				log.Println(ai.StopLimit)
+				log.Println(ai.Profit)
 				buyOpen = false
 				ai.Profit = 0.0
 				ai.StopLimit = 0.0
 				ai.UpdateOptimizeParams(true)
 			}
+			fmt.Println("price")
+			fmt.Println(price)
 			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				sellOpen = false
-				ai.StopLimit = 0.0
-				ai.UpdateOptimizeParams(true)
-			}
-			if sellPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				buyOpen = false
-				ai.StopLimit = 0.0
-				ai.UpdateOptimizeParams(true)
-			}
+			//if buyPoint > 0 {
+			//	_, isOrderCompleted := ai.Sell(df.Candles[i])
+			//	if !isOrderCompleted {
+			//		continue
+			//	}
+			//	buyOpen = false
+			//	ai.StopLimit = 0.0
+			//	ai.UpdateOptimizeParams(true)
+			//}
+			//if sellPoint > 0 {
+			//	_, isOrderCompleted := ai.Buy(df.Candles[i])
+			//	if !isOrderCompleted {
+			//		continue
+			//	}
+			//	sellOpen = false
+			//	ai.StopLimit = 0.0
+			//	ai.UpdateOptimizeParams(true)
+			//}
 		}
 	}
 }
@@ -419,26 +439,26 @@ func (ai *AI) AdjustSize(size float64) float64 {
 }
 
 /** 注文が確定したかを確認し、signalEventsテーブルに売買情報を保存する */
-func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime time.Time) bool {
+func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime time.Time) (bool, float64) {
 	params := map[string]string{
 		"product_code":              ai.ProductCode,
 		"child_order_acceptance_id": childOrderAcceptanceID,
 	}
 	expire := time.After(time.Minute)
 	interval := time.Tick(15 * time.Second)
-	return func() bool {
+	return func() (bool, float64) {
 		for {
 			select {
 			case <-expire:
-				return false
+				return false, 0
 			case <-interval:
 				listOrders, err := ai.API.ListOrder(params)
 				if err != nil {
 					log.Println(err)
-					return false
+					return false, 0
 				}
 				if len(listOrders) == 0 {
-					return false
+					return false, 0
 				}
 				order := listOrders[0]
 				if order.ChildOrderState == "COMPLETED" {
@@ -447,16 +467,16 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime 
 						if !couldBuy {
 							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
-						return couldBuy
+						return couldBuy, order.AveragePrice
 					}
 					if order.Side == "SELL" {
 						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
 						if !couldSell {
 							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
-						return couldSell
+						return couldSell, order.AveragePrice
 					}
-					return false
+					return false, 0
 				}
 			}
 		}

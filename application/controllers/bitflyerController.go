@@ -19,7 +19,7 @@ func StreamIngestionData() {
 				for _, duration := range config.Config.Durations {
 					isCreated := service.CreateCandleWithDuration(ticker, ticker.ProductCode, duration)
 					if isCreated == true && duration == config.Config.Durations["30s"] {
-						// ai.Trade()
+						// ai.Trade(ticker)
 					}
 				}
 			}
