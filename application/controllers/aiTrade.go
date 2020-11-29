@@ -335,7 +335,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
 		if sellOpen == false && buyOpen == false {
 			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > sellPoint {
+			if sellPoint > buyPoint {
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
@@ -344,7 +344,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				ai.Profit = math.Floor(orderPrice*0.9995*10000) / 10000
 				ai.StopLimit = df.Candles[i].Close * (1 + (1 - ai.StopLimitPercent))
 			}
-			if sellPoint > buyPoint {
+			if buyPoint > sellPoint {
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
