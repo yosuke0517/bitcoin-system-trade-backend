@@ -36,7 +36,7 @@ func StreamIngestionData() {
 func Test() {
 	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["1m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
 	for range time.Tick(1 * time.Second) {
-		if time.Now().Second()%10 == 0 {
+		if time.Now().Hour() != 19 && time.Now().Second()%10 == 0 {
 			ai.Trade(tradeTicker)
 		}
 	}
