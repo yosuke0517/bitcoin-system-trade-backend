@@ -426,8 +426,8 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime 
 		"product_code":              ai.ProductCode,
 		"child_order_acceptance_id": childOrderAcceptanceID,
 	}
-	expire := time.After(time.Minute)
-	interval := time.Tick(15 * time.Second)
+	expire := time.After(time.Second * 30)
+	interval := time.Tick(5 * time.Second)
 	return func() (bool, float64) {
 		for {
 			select {

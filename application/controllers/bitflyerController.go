@@ -5,6 +5,7 @@ import (
 	"app/config"
 	"app/domain/service"
 	"os"
+	"time"
 )
 
 func StreamIngestionData() {
@@ -18,7 +19,7 @@ func StreamIngestionData() {
 			for ticker := range tickerChannl {
 				for _, duration := range config.Config.Durations {
 					isCreated := service.CreateCandleWithDuration(ticker, ticker.ProductCode, duration)
-					if isCreated == true && duration == config.Config.Durations["30s"] {
+					if isCreated == true && time.Now().Second()%10 == 0 {
 						ai.Trade(ticker)
 					}
 				}
