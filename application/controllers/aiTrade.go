@@ -4,7 +4,6 @@ import (
 	"app/bitflyer"
 	"app/domain/model"
 	"app/domain/service"
-	"app/domain/tradingalgo"
 	"fmt"
 	"github.com/markcheno/go-talib"
 	"log"
@@ -32,12 +31,17 @@ type AI struct {
 	StopLimitPercent     float64
 	BackTest             bool
 	StartTrade           time.Time
+	Profit               float64
 }
 
 // TODO mutex, singleton
 var Ai *AI
 
 var size float64
+
+var sellOpen bool
+
+var buyOpen bool
 
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
@@ -77,10 +81,11 @@ func (ai *AI) UpdateOptimizeParams(isContinue bool) {
 }
 
 /** bitflyer用のBUY */
-func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
+func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
+	orderPrice = 0.0
 	if ai.BackTest {
 		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true)
-		return "", couldBuy
+		return "", couldBuy, orderPrice
 	}
 	// トレード時間の妥当性チェック
 	if ai.StartTrade.After(candle.Time) {
@@ -136,15 +141,16 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		return
 	}
 
-	isOrderCompleted = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
-	return childOrderAcceptanceID, isOrderCompleted
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
 /** bitflyer用のSELL */
-func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool) {
+func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
+	orderPrice = 0.0
 	if ai.BackTest {
 		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true)
-		return "", couldSell
+		return "", couldSell, orderPrice
 	}
 
 	if ai.StartTrade.After(candle.Time) {
@@ -200,15 +206,21 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		return
 	}
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
-	isOrderCompleted = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
-	return childOrderAcceptanceID, isOrderCompleted
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
-func (ai *AI) Trade() {
+func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	eventLength := model.GetAllSignalEventsCount()
+	price := ticker.GetMidPrice()
 	fmt.Println(eventLength)
 	// 取引が完了していたらParamsを更新する
 	if eventLength%2 == 0 {
+		// オープンは0秒台のみ
+		if time.Now().Second() > 9 {
+			fmt.Println("10秒より大きい秒数でのオープンはキャンセル")
+			return
+		}
 		go ai.UpdateOptimizeParams(true)
 	}
 	// goroutineの同時実行数を制御
@@ -225,39 +237,42 @@ func (ai *AI) Trade() {
 	}
 	df, _ := service.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
 	lenCandles := len(df.Candles)
+	params.EmaEnable = true
 
 	// EMA
 	var emaValues1 []float64
 	var emaValues2 []float64
+	var emaValues3 []float64
 	if params.EmaEnable {
-		emaValues1 = talib.Ema(df.Closes(), params.EmaPeriod1)
-		emaValues2 = talib.Ema(df.Closes(), params.EmaPeriod2)
+		emaValues1 = talib.Ema(df.Closes(), 7)
+		emaValues2 = talib.Ema(df.Closes(), 14)
+		emaValues3 = talib.Ema(df.Closes(), 50)
 	}
 
-	// ボリンジャーバンド
-	var bbUp []float64
-	var bbDown []float64
-	if params.BbEnable {
-		bbUp, _, bbDown = talib.BBands(df.Closes(), params.BbN, params.BbK, params.BbK, 0)
-	}
-
-	// 一目均衡表
-	var tenkan, kijun, senkouA, senkouB, chikou []float64
-	if params.IchimokuEnable {
-		tenkan, kijun, senkouA, senkouB, chikou = tradingalgo.IchimokuCloud(df.Closes())
-	}
-
-	// MACD
-	var outMACD, outMACDSignal []float64
-	if params.MacdEnable {
-		outMACD, outMACDSignal, _ = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
-	}
-
-	// RSI
-	var rsiValues []float64
-	if params.RsiEnable {
-		rsiValues = talib.Rsi(df.Closes(), params.RsiPeriod)
-	}
+	//// ボリンジャーバンド
+	//var bbUp []float64
+	//var bbDown []float64
+	//if params.BbEnable {
+	//	bbUp, _, bbDown = talib.BBands(df.Closes(), params.BbN, params.BbK, params.BbK, 0)
+	//}
+	//
+	//// 一目均衡表
+	//var tenkan, kijun, senkouA, senkouB, chikou []float64
+	//if params.IchimokuEnable {
+	//	tenkan, kijun, senkouA, senkouB, chikou = tradingalgo.IchimokuCloud(df.Closes())
+	//}
+	//
+	//// MACD
+	//var outMACD, outMACDSignal []float64
+	//if params.MacdEnable {
+	//	outMACD, outMACDSignal, _ = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
+	//}
+	//
+	//// RSI
+	//var rsiValues []float64
+	//if params.RsiEnable {
+	//	rsiValues = talib.Rsi(df.Closes(), params.RsiPeriod)
+	//}
 
 	for i := 1; i < lenCandles; i++ {
 		// 有効なインディケータの数
@@ -265,100 +280,154 @@ func (ai *AI) Trade() {
 		// ゴールデンクロス・デッドクロスが計算できる条件
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
-			if emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
+			// buyOpenのオープン
+			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
+				// fmt.Println("buyOpenのオープン")
 				buyPoint++
 			}
-			// デッドクロス
-			if emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
+			// buyOpenのクローズ
+			if buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
+				// fmt.Println("buyOpenのクローズ")
 				sellPoint++
+			}
+			// デッドクロス
+			// sellOpenのオープン
+			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
+				// fmt.Println("sellOpenのオープン")
+				sellPoint++
+			}
+			// sellOpenのクローズ
+			if sellOpen && !buyOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
+				// fmt.Println("sellOpenのクローズ")
+				buyPoint++
 			}
 		}
 
 		// ボリンジャーバンド
-		if params.BbEnable && params.BbN <= i {
-			// 上抜け（買い）
-			if bbDown[i-1] > df.Candles[i-1].Close && bbDown[i] <= df.Candles[i].Close {
-				buyPoint++
-			}
-			// 下抜け（売り）
-			if bbUp[i-1] < df.Candles[i-1].Close && bbUp[i] >= df.Candles[i].Close {
-				sellPoint++
-			}
-		}
-
-		// MACD
-		if params.MacdEnable {
-			// 上抜け（買い）
-			if outMACD[i] < 0 && outMACDSignal[i] < 0 && outMACD[i-1] < outMACDSignal[i-1] && outMACD[i] >= outMACDSignal[i] {
-				buyPoint++
-			}
-			// 下抜け（売り）
-			if outMACD[i] > 0 && outMACDSignal[i] > 0 && outMACD[i-1] > outMACDSignal[i-1] && outMACD[i] <= outMACDSignal[i] {
-				sellPoint++
-			}
-		}
-		// 一目均衡表
-		if params.IchimokuEnable {
-			if chikou[i-1] < df.Candles[i-1].High && chikou[i] >= df.Candles[i].High &&
-				senkouA[i] < df.Candles[i].Low && senkouB[i] < df.Candles[i].Low &&
-				tenkan[i] > kijun[i] {
-				buyPoint++
-			}
-
-			if chikou[i-1] > df.Candles[i-1].Low && chikou[i] <= df.Candles[i].Low &&
-				senkouA[i] > df.Candles[i].High && senkouB[i] > df.Candles[i].High &&
-				tenkan[i] < kijun[i] {
-				sellPoint++
-			}
-		}
-		// RSI
-		if params.RsiEnable && rsiValues[i-1] != 0 && rsiValues[i-1] != 100 {
-			// 30% 上抜け（買い）
-			if rsiValues[i-1] < params.RsiBuyThread && rsiValues[i] >= params.RsiBuyThread {
-				buyPoint++
-			}
-			// 70% 下抜け（売り）
-			if rsiValues[i-1] > params.RsiSellThread && rsiValues[i] <= params.RsiSellThread {
-				sellPoint++
-			}
-		}
+		//if params.BbEnable && params.BbN <= i {
+		//	// 上抜け（買い）
+		//	if bbDown[i-1] > df.Candles[i-1].Close && bbDown[i] <= df.Candles[i].Close {
+		//		buyPoint++
+		//	}
+		//	// 下抜け（売り）
+		//	if bbUp[i-1] < df.Candles[i-1].Close && bbUp[i] >= df.Candles[i].Close {
+		//		sellPoint++
+		//	}
+		//}
+		//
+		//// MACD
+		//if params.MacdEnable {
+		//	// 上抜け（買い）
+		//	if outMACD[i] < 0 && outMACDSignal[i] < 0 && outMACD[i-1] < outMACDSignal[i-1] && outMACD[i] >= outMACDSignal[i] {
+		//		buyPoint++
+		//	}
+		//	// 下抜け（売り）
+		//	if outMACD[i] > 0 && outMACDSignal[i] > 0 && outMACD[i-1] > outMACDSignal[i-1] && outMACD[i] <= outMACDSignal[i] {
+		//		sellPoint++
+		//	}
+		//}
+		//// 一目均衡表
+		//if params.IchimokuEnable {
+		//	if chikou[i-1] < df.Candles[i-1].High && chikou[i] >= df.Candles[i].High &&
+		//		senkouA[i] < df.Candles[i].Low && senkouB[i] < df.Candles[i].Low &&
+		//		tenkan[i] > kijun[i] {
+		//		buyPoint++
+		//	}
+		//
+		//	if chikou[i-1] > df.Candles[i-1].Low && chikou[i] <= df.Candles[i].Low &&
+		//		senkouA[i] > df.Candles[i].High && senkouB[i] > df.Candles[i].High &&
+		//		tenkan[i] < kijun[i] {
+		//		sellPoint++
+		//	}
+		//}
+		//// RSI
+		//if params.RsiEnable && rsiValues[i-1] != 0 && rsiValues[i-1] != 100 {
+		//	// 30% 上抜け（買い）
+		//	if rsiValues[i-1] < params.RsiBuyThread && rsiValues[i] >= params.RsiBuyThread {
+		//		buyPoint++
+		//	}
+		//	// 70% 下抜け（売り）
+		//	if rsiValues[i-1] > params.RsiSellThread && rsiValues[i] <= params.RsiSellThread {
+		//		sellPoint++
+		//	}
+		//}
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
-		if eventLength%2 == 0 {
+		if sellOpen == false && buyOpen == false {
 			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
+			if sellPoint > buyPoint {
+				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
-				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+				sellOpen = true
+				ai.Profit = math.Floor(orderPrice*0.9995*10000) / 10000
+				ai.StopLimit = df.Candles[i].Close * (1 + (1 - ai.StopLimitPercent))
 			}
-			if sellPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
+			if buyPoint > sellPoint {
+				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				buyOpen = true
+				ai.Profit = math.Floor(orderPrice*1.0005*10000) / 10000
 				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
 			}
 		}
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
-		if eventLength%2 == 1 {
+		if sellOpen == true || buyOpen == true {
+			// sellOpenのクローズ
+			if sellOpen == true && (price <= ai.Profit || price >= ai.StopLimit) {
+				//fmt.Println("price <= ai.Profit")
+				//fmt.Println(price <= ai.Profit)
+				//fmt.Println("price >= ai.StopLimit")
+				//fmt.Println(price >= ai.StopLimit)
+				//fmt.Println("sellPoint < buyPoint")
+				//fmt.Println(sellPoint < buyPoint)
+				_, isOrderCompleted, _ := ai.Buy(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				sellOpen = false
+				ai.Profit = 0.0
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
+			}
+			// buyOpenのクローズ
+			if buyOpen == true && (price >= ai.Profit || price <= ai.StopLimit) {
+				//fmt.Println("price >= ai.Profit")
+				//fmt.Println(price >= ai.Profit)
+				//fmt.Println("price <= ai.StopLimit")
+				//fmt.Println(price <= ai.StopLimit)
+				//fmt.Println("sellPoint > buyPoint")
+				//fmt.Println(sellPoint > buyPoint)
+				_, isOrderCompleted, _ := ai.Sell(df.Candles[i])
+				if !isOrderCompleted {
+					continue
+				}
+				buyOpen = false
+				ai.Profit = 0.0
+				ai.StopLimit = 0.0
+				ai.UpdateOptimizeParams(true)
+			}
 			// 1つでも買いのインディケータがあれば買い
-			if buyPoint > 0 {
-				_, isOrderCompleted := ai.Buy(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				ai.StopLimit = 0.0
-				ai.UpdateOptimizeParams(true)
-			}
-			if sellPoint > 0 {
-				_, isOrderCompleted := ai.Sell(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				ai.StopLimit = 0.0
-				ai.UpdateOptimizeParams(true)
-			}
+			//if buyPoint > 0 {
+			//	_, isOrderCompleted := ai.Sell(df.Candles[i])
+			//	if !isOrderCompleted {
+			//		continue
+			//	}
+			//	buyOpen = false
+			//	ai.StopLimit = 0.0
+			//	ai.UpdateOptimizeParams(true)
+			//}
+			//if sellPoint > 0 {
+			//	_, isOrderCompleted := ai.Buy(df.Candles[i])
+			//	if !isOrderCompleted {
+			//		continue
+			//	}
+			//	sellOpen = false
+			//	ai.StopLimit = 0.0
+			//	ai.UpdateOptimizeParams(true)
+			//}
 		}
 	}
 }
@@ -383,26 +452,26 @@ func (ai *AI) AdjustSize(size float64) float64 {
 }
 
 /** 注文が確定したかを確認し、signalEventsテーブルに売買情報を保存する */
-func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime time.Time) bool {
+func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime time.Time) (bool, float64) {
 	params := map[string]string{
 		"product_code":              ai.ProductCode,
 		"child_order_acceptance_id": childOrderAcceptanceID,
 	}
-	expire := time.After(time.Minute)
-	interval := time.Tick(15 * time.Second)
-	return func() bool {
+	expire := time.After(time.Second * 30)
+	interval := time.Tick(5 * time.Second)
+	return func() (bool, float64) {
 		for {
 			select {
 			case <-expire:
-				return false
+				return false, 0
 			case <-interval:
 				listOrders, err := ai.API.ListOrder(params)
 				if err != nil {
 					log.Println(err)
-					return false
+					return false, 0
 				}
 				if len(listOrders) == 0 {
-					return false
+					return false, 0
 				}
 				order := listOrders[0]
 				if order.ChildOrderState == "COMPLETED" {
@@ -411,16 +480,16 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime 
 						if !couldBuy {
 							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
-						return couldBuy
+						return couldBuy, order.AveragePrice
 					}
 					if order.Side == "SELL" {
 						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
 						if !couldSell {
 							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
-						return couldSell
+						return couldSell, order.AveragePrice
 					}
-					return false
+					return false, 0
 				}
 			}
 		}

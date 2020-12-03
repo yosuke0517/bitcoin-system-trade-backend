@@ -33,5 +33,6 @@ func main() {
 	リアルタイム controllerから
 	*/
 	go controllers.StreamIngestionData()
+	go controllers.Test()
 	server.Serve()
 }

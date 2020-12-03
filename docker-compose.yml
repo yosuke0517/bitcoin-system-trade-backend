@@ -4,6 +4,7 @@ services:
   go:
     build:
       dockerfile: Dockerfile.dev
+      # dockerfile: Dockerfile
       context: .
       target: build
     volumes:
@@ -11,6 +12,7 @@ services:
     command: >
       air
       sql-migrate up
+    #go run main.go
     ports:
       - 8080:8080
       - 2345:2345

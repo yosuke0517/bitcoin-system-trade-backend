@@ -278,29 +278,20 @@ func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, 
 	bestPeriod1 = 7
 	bestPeriod2 = 14
 	// TODO 数を伸ばしたりして要調整 No.129
-	//for period1 := 5; period1 < 50; period1++ {
-	//	for period2 := 12; period2 < 50; period2++ {
-	//		signalEvents := df.BackTestEma(period1, period2)
-	//		if signalEvents == nil {
-	//			continue
-	//		}
-	//		// それぞれの利益を出して1番良い成績を残す日数を探す
-	//		profit := signalEvents.Profit()
-	//		if performance < profit {
-	//			performance = profit
-	//			bestPeriod1 = period1
-	//			bestPeriod2 = period2
-	//		}
-	//	}
-	//}
-
-	signalEvents := df.BackTestEma(bestPeriod1, bestPeriod2)
-	// それぞれの利益を出して1番良い成績を残す日数を探す
-	profit := signalEvents.Profit()
-	if performance < profit {
-		performance = profit
-		//bestPeriod1 = period1
-		//bestPeriod2 = period2
+	for period1 := 5; period1 < 30; period1++ {
+		for period2 := 12; period2 < 50; period2++ {
+			signalEvents := df.BackTestEma(period1, period2)
+			if signalEvents == nil {
+				continue
+			}
+			// それぞれの利益を出して1番良い成績を残す日数を探す
+			profit := signalEvents.Profit()
+			if performance < profit {
+				performance = profit
+				bestPeriod1 = period1
+				bestPeriod2 = period2
+			}
+		}
 	}
 	return performance, bestPeriod1, bestPeriod2
 }
@@ -427,9 +418,9 @@ func (df *DataFrameCandle) OptimizeMacd() (performance float64, bestMacdFastPeri
 	bestMacdSlowPeriod = 26
 	bestMacdSignalPeriod = 9
 
-	for fastPeriod := 10; fastPeriod < 19; fastPeriod++ {
-		for slowPeriod := 20; slowPeriod < 30; slowPeriod++ {
-			for signalPeriod := 5; signalPeriod < 15; signalPeriod++ {
+	for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
+		for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
+			for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
 				signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod)
 				if signalEvents == nil {
 					continue
@@ -479,7 +470,7 @@ func (df *DataFrameCandle) OptimizeRsi() (performance float64, bestPeriod int, b
 	bestPeriod = 14
 	bestBuyThread, bestSellThread = 30.0, 70.0
 
-	for period := 5; period < 25; period++ {
+	for period := 5; period < 30; period++ {
 		signalEvents := df.BackTestRsi(period, bestBuyThread, bestSellThread)
 		if signalEvents == nil {
 			continue
