@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -210,6 +211,9 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
+var profit float64
+var stopLimit float64
+
 func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	eventLength := model.GetAllSignalEventsCount()
 	price := ticker.GetMidPrice()
@@ -218,7 +222,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	if eventLength%2 == 0 {
 		// オープンは0秒台のみ
 		if time.Now().Second() > 9 {
-			fmt.Println("10秒より大きい秒数でのオープンはキャンセル")
+			fmt.Printf("10秒より大きい秒数でのオープンはキャンセル:%s", time.Now().Local())
 			return
 		}
 		go ai.UpdateOptimizeParams(true)
@@ -355,50 +359,76 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if sellOpen == false && buyOpen == false && time.Now().Second() < 9 {
 			// 1つでも買いのインディケータがあれば買い
 			if sellPoint > buyPoint {
-				log.Println("sellOpenのオープン")
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				if ai.BackTest {
+					orderPrice = price
+				}
+				log.Println("sellOpenのオープン")
 				sellOpen = true
-				ai.Profit = math.Floor(orderPrice*0.9995*10000) / 10000
-				ai.StopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
+				//ai.Profit = math.Floor(orderPrice*0.9995*10000) / 10000
+				//ai.StopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
+				profit = math.Floor(orderPrice*0.9995*10000) / 10000
+				stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
 			}
 			if buyPoint > sellPoint {
-				log.Println("buyOpenのオープン")
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				if ai.BackTest {
+					orderPrice = price
+				}
+				log.Println("buyOpenのオープン")
 				buyOpen = true
-				ai.Profit = math.Floor(orderPrice*1.0005*10000) / 10000
-				ai.StopLimit = orderPrice * ai.StopLimitPercent
+				//ai.Profit = math.Floor(orderPrice*1.0005*10000) / 10000
+				//ai.StopLimit = orderPrice * ai.StopLimitPercent
+				profit = math.Floor(orderPrice*1.0005*10000) / 10000
+				stopLimit = orderPrice * ai.StopLimitPercent
 			}
 		}
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
 		if sellOpen == true || buyOpen == true {
 			// sellOpenのクローズ
-			if sellOpen == true && (price <= ai.Profit || price >= ai.StopLimit) {
-				log.Println("sellOpenのクローズ")
+			if sellOpen == true && (price <= profit || price >= stopLimit) {
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				if price >= stopLimit {
+					log.Println("損切り")
+				}
+				log.Println("sellOpenのクローズ")
+				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
+				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
+				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				fmt.Printf("isStopLimit??: %s\n", strconv.FormatBool(price >= stopLimit))
+				fmt.Printf("StopLimitの値:%s\n", strconv.FormatFloat(stopLimit, 'f', -1, 64))
 				sellOpen = false
-				ai.Profit = 0.0
-				ai.StopLimit = 0.0
+				profit = 0.0
+				stopLimit = 0.0
 				ai.UpdateOptimizeParams(true)
 			}
 			// buyOpenのクローズ
-			if buyOpen == true && (price >= ai.Profit || price <= ai.StopLimit) {
-				log.Println("buyOpenのクローズ")
+			if buyOpen == true && (price >= profit || price <= stopLimit) {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
+				if price <= stopLimit {
+					log.Println("損切り")
+				}
+				log.Println("buyOpenのクローズ")
+				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
+				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
+				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				fmt.Printf("isStopLimit??: %s\n", strconv.FormatBool(price >= stopLimit))
+				fmt.Printf("StopLimitの値:%s\n", strconv.FormatFloat(stopLimit, 'f', -1, 64))
 				buyOpen = false
-				ai.Profit = 0.0
-				ai.StopLimit = 0.0
+				profit = 0.0
+				stopLimit = 0.0
 				ai.UpdateOptimizeParams(true)
 			}
 			// 1つでも買いのインディケータがあれば買い
@@ -408,7 +438,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			//		continue
 			//	}
 			//	buyOpen = false
-			//	ai.StopLimit = 0.0
+			//	stopLimit = 0.0
 			//	ai.UpdateOptimizeParams(true)
 			//}
 			//if sellPoint > 0 {
@@ -417,7 +447,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			//		continue
 			//	}
 			//	sellOpen = false
-			//	ai.StopLimit = 0.0
+			//	stopLimit = 0.0
 			//	ai.UpdateOptimizeParams(true)
 			//}
 		}
