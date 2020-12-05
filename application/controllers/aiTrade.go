@@ -242,11 +242,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	// EMA
 	var emaValues1 []float64
 	var emaValues2 []float64
-	var emaValues3 []float64
+	// var emaValues3 []float64
 	if params.EmaEnable {
 		emaValues1 = talib.Ema(df.Closes(), 7)
 		emaValues2 = talib.Ema(df.Closes(), 14)
-		emaValues3 = talib.Ema(df.Closes(), 50)
+		// emaValues3 = talib.Ema(df.Closes(), 50)
 	}
 
 	//// ボリンジャーバンド
@@ -281,7 +281,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
 			// buyOpenのオープン
-			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
+			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
 				// fmt.Println("buyOpenのオープン")
 				buyPoint++
 			}
@@ -292,7 +292,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			// デッドクロス
 			// sellOpenのオープン
-			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
+			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
 				// fmt.Println("sellOpenのオープン")
 				sellPoint++
 			}
@@ -352,25 +352,27 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	}
 		//}
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
-		if sellOpen == false && buyOpen == false {
+		if sellOpen == false && buyOpen == false && time.Now().Second() < 9 {
 			// 1つでも買いのインディケータがあれば買い
 			if sellPoint > buyPoint {
+				log.Println("sellOpenのオープン")
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
 				sellOpen = true
 				ai.Profit = math.Floor(orderPrice*0.9995*10000) / 10000
-				ai.StopLimit = df.Candles[i].Close * (1 + (1 - ai.StopLimitPercent))
+				ai.StopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
 			}
 			if buyPoint > sellPoint {
+				log.Println("buyOpenのオープン")
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
 				}
 				buyOpen = true
 				ai.Profit = math.Floor(orderPrice*1.0005*10000) / 10000
-				ai.StopLimit = df.Candles[i].Close * ai.StopLimitPercent
+				ai.StopLimit = orderPrice * ai.StopLimitPercent
 			}
 		}
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
@@ -383,6 +385,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				//fmt.Println(price >= ai.StopLimit)
 				//fmt.Println("sellPoint < buyPoint")
 				//fmt.Println(sellPoint < buyPoint)
+				log.Println("sellOpenのクローズ")
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
 					continue
@@ -400,6 +403,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				//fmt.Println(price <= ai.StopLimit)
 				//fmt.Println("sellPoint > buyPoint")
 				//fmt.Println(sellPoint > buyPoint)
+				log.Println("buyOpenのクローズ")
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
 					continue
