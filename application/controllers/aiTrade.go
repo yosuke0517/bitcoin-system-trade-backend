@@ -379,12 +379,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if sellOpen == true || buyOpen == true {
 			// sellOpenのクローズ
 			if sellOpen == true && (price <= ai.Profit || price >= ai.StopLimit) {
-				//fmt.Println("price <= ai.Profit")
-				//fmt.Println(price <= ai.Profit)
-				//fmt.Println("price >= ai.StopLimit")
-				//fmt.Println(price >= ai.StopLimit)
-				//fmt.Println("sellPoint < buyPoint")
-				//fmt.Println(sellPoint < buyPoint)
 				log.Println("sellOpenのクローズ")
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i])
 				if !isOrderCompleted {
@@ -397,12 +391,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			// buyOpenのクローズ
 			if buyOpen == true && (price >= ai.Profit || price <= ai.StopLimit) {
-				//fmt.Println("price >= ai.Profit")
-				//fmt.Println(price >= ai.Profit)
-				//fmt.Println("price <= ai.StopLimit")
-				//fmt.Println(price <= ai.StopLimit)
-				//fmt.Println("sellPoint > buyPoint")
-				//fmt.Println(sellPoint > buyPoint)
 				log.Println("buyOpenのクローズ")
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i])
 				if !isOrderCompleted {
