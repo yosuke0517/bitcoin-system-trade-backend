@@ -142,7 +142,7 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		return
 	}
 
-	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID)
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
@@ -207,7 +207,7 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		return
 	}
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
-	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, candle.Time)
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID)
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
@@ -253,11 +253,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	// EMA
 	var emaValues1 []float64
 	var emaValues2 []float64
-	// var emaValues3 []float64
+	var emaValues3 []float64
 	if params.EmaEnable {
 		emaValues1 = talib.Ema(df.Closes(), 7)
 		emaValues2 = talib.Ema(df.Closes(), 14)
-		// emaValues3 = talib.Ema(df.Closes(), 50)
+		emaValues3 = talib.Ema(df.Closes(), 50)
 	}
 
 	//// ボリンジャーバンド
@@ -481,7 +481,7 @@ func (ai *AI) AdjustSize(size float64) float64 {
 }
 
 /** 注文が確定したかを確認し、signalEventsテーブルに売買情報を保存する */
-func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime time.Time) (bool, float64) {
+func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string) (bool, float64) {
 	params := map[string]string{
 		"product_code":              ai.ProductCode,
 		"child_order_acceptance_id": childOrderAcceptanceID,
@@ -505,14 +505,14 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, executeTime 
 				order := listOrders[0]
 				if order.ChildOrderState == "COMPLETED" {
 					if order.Side == "BUY" {
-						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
+						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, time.Now().Truncate(time.Minute), order.AveragePrice, order.Size, true)
 						if !couldBuy {
 							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
 						return couldBuy, order.AveragePrice
 					}
 					if order.Side == "SELL" {
-						couldSell := ai.SignalEvents.Sell(ai.ProductCode, executeTime, order.AveragePrice, order.Size, true)
+						couldSell := ai.SignalEvents.Sell(ai.ProductCode, time.Now().Truncate(time.Minute), order.AveragePrice, order.Size, true)
 						if !couldSell {
 							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
