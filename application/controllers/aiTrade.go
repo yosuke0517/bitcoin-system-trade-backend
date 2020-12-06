@@ -216,6 +216,13 @@ var stopLimit float64
 
 func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	eventLength := model.GetAllSignalEventsCount()
+	signalEvents := model.GetSignalEventsByCount(1)
+	if len(signalEvents.Signals) > 0 {
+		if eventLength%2 == 0 && signalEvents.Signals[0].Time.Truncate(time.Minute).Add(time.Minute).Equal(time.Now().Truncate(time.Minute)) || signalEvents.Signals[0].Time.Truncate(time.Minute).Equal(time.Now().Truncate(time.Minute)) {
+			fmt.Println("前回取引の直後はreturn")
+			return
+		}
+	}
 	price := ticker.GetMidPrice()
 	fmt.Println(eventLength)
 	// 取引が完了していたらParamsを更新する
@@ -285,7 +292,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
 			// buyOpenのオープン
-			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
+			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && emaValues3[i] <= emaValues2[i] && emaValues3[i] <= emaValues1[i] {
 				// fmt.Println("buyOpenのオープン")
 				buyPoint++
 			}
@@ -296,7 +303,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			// デッドクロス
 			// sellOpenのオープン
-			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
+			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && emaValues3[i] >= emaValues2[i] && emaValues3[i] >= emaValues1[i] {
 				// fmt.Println("sellOpenのオープン")
 				sellPoint++
 			}
