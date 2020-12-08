@@ -422,22 +422,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				sellOpen = false
 				profit = 0.0
 				stopLimit = 0.0
-				//ai.UpdateOptimizeParams(true)
-				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				if ai.BackTest {
-					orderPrice = price
-				}
-				log.Println("buyOpenのオープンFFFFFFFFFFFFFFFFFF")
-				buyOpen = true
-				//profit = math.Floor(orderPrice*1.004*10000) / 10000
-				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
-				profit = bbUp[i]
-				stopLimit = orderPrice * ai.StopLimitPercent
-				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				ai.UpdateOptimizeParams(true)
 			}
 			// buyOpenのクローズ
 			if buyOpen == true && (sellPoint > 0 || price >= profit || price <= stopLimit) {
@@ -457,22 +442,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				buyOpen = false
 				profit = 0.0
 				stopLimit = 0.0
-				//ai.UpdateOptimizeParams(true)
-				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
-				if !isOrderCompleted {
-					continue
-				}
-				if ai.BackTest {
-					orderPrice = price
-				}
-				log.Println("sellOpenのオープンnnnnnnnnnnnnnnn")
-				sellOpen = true
-				//profit = math.Floor(orderPrice*0.996*10000) / 10000
-				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
-				profit = bbDown[i]
-				stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
-				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				ai.UpdateOptimizeParams(true)
 			}
 			// 1つでも買いのインディケータがあれば買い
 			//if buyPoint > 0 {
