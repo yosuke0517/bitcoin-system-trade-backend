@@ -104,6 +104,9 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		log.Println(err)
 		return
 	}
+	if ticker == nil {
+		return
+	}
 	// 証拠金の4倍でどれだけ買えるか調査
 	size = 1.0 / (ticker.BestAsk / useCurrency)
 	size = ai.AdjustSize(size)
@@ -170,6 +173,9 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		log.Println(err)
 		return
 	}
+	if ticker == nil {
+		return
+	}
 	// 証拠金の4倍でどれだけ買えるか調査
 	size = 1.0 / (ticker.BestAsk / useCurrency)
 	size = ai.AdjustSize(size)
@@ -178,6 +184,8 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		"product_code": "FX_BTC_JPY",
 	}
 	positionRes, _ := ai.API.GetPositions(params)
+	fmt.Println("positionRes")
+	fmt.Println(positionRes)
 	// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
 	if len(positionRes) > 0 {
 		size = 0.0
@@ -265,6 +273,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	// ボリンジャーバンド
 	var bbUp []float64
 	var bbDown []float64
+	params.BbEnable = true
 	if params.BbEnable {
 		bbUp, _, bbDown = talib.BBands(df.Closes(), params.BbN, params.BbK, params.BbK, 0)
 	}
@@ -286,7 +295,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//if params.RsiEnable {
 	//	rsiValues = talib.Rsi(df.Closes(), params.RsiPeriod)
 	//}
-
+	fmt.Printf("lenCandles:%s\n", strconv.Itoa(lenCandles))
 	for i := 1; i < lenCandles; i++ {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
@@ -379,7 +388,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				sellOpen = true
 				//profit = math.Floor(orderPrice*0.996*10000) / 10000
 				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
-				profit = bbDown[i]
+				if len(bbDown) >= i {
+					profit = bbDown[i]
+				} else {
+					profit = math.Floor(orderPrice*0.997*10000) / 10000
+				}
 				stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
@@ -396,7 +409,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				buyOpen = true
 				//profit = math.Floor(orderPrice*1.004*10000) / 10000
 				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
-				profit = bbUp[i]
+				if len(bbUp) >= i {
+					profit = bbUp[i]
+				} else {
+					profit = math.Floor(orderPrice*1.003*10000) / 10000
+				}
 				stopLimit = orderPrice * ai.StopLimitPercent
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
