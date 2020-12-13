@@ -275,7 +275,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	var bbDown []float64
 	params.BbEnable = true
 	if params.BbEnable {
-		bbUp, _, bbDown = talib.BBands(df.Closes(), params.BbN, params.BbK, params.BbK, 0)
+		bbUp, _, bbDown = talib.BBands(df.Closes(), 20, 2, 2, 0)
 	}
 
 	//// 一目均衡表
