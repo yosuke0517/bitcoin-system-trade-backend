@@ -140,21 +140,25 @@ func GetAllSignalEventsCount() int {
 }
 
 /** 買えるかどうかの判定 */
-func (s *SignalEvents) CanBuy(time time.Time) bool {
+func (s *SignalEvents) CanBuy(time time.Time, reOpen bool) bool {
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
 		return true
 	}
 	// TODO ショート対応
 	lastSignal := s.Signals[lenSignals-1]
-	if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
+	if reOpen {
+		return true
+	}
+	// 同じ時間の場合はreOpenがtrueの時のみ許可する
+	if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && (lastSignal.Time.Before(time) || (lastSignal.Time.Equal(time) && reOpen)) {
 		return true
 	}
 	return false
 }
 
 /** 売れるかどうかの判定 */
-func (s *SignalEvents) CanSell(time time.Time) bool {
+func (s *SignalEvents) CanSell(time time.Time, reOpen bool) bool {
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
 		return true
@@ -162,15 +166,19 @@ func (s *SignalEvents) CanSell(time time.Time) bool {
 
 	lastSignal := s.Signals[lenSignals-1]
 	// TODO ショート対応
-	if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && lastSignal.Time.Before(time) {
+	if reOpen {
+		return true
+	}
+	// 同じ時間の場合はreOpenがtrueの時のみ許可する
+	if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && (lastSignal.Time.Before(time) || (lastSignal.Time.Equal(time) && reOpen)) {
 		return true
 	}
 	return false
 }
 
 /** 購入 */
-func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, save bool) bool {
-	canBuy := s.CanBuy(time)
+func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, save bool, reOpen bool) bool {
+	canBuy := s.CanBuy(time, reOpen)
 	if !canBuy {
 		return false
 	}
@@ -191,8 +199,8 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 }
 
 /** 売却 */
-func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, save bool) bool {
-	canSell := s.CanSell(time)
+func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, save bool, reOpen bool) bool {
+	canSell := s.CanSell(time, reOpen)
 	if !canSell {
 		return false
 	}

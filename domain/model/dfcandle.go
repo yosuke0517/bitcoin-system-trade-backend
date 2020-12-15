@@ -244,7 +244,7 @@ func (df *DataFrameCandle) AddEvents(timeTime time.Time) bool {
 }
 
 /** EMAバックテスト */
-func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
+func (df *DataFrameCandle) BackTestEma(period1, period2 int, reOpen bool) *SignalEvents {
 	lenCandles := len(df.Candles)
 	// キャンドル数が足りているかのチェック
 	if lenCandles <= period1 || lenCandles <= period2 {
@@ -261,11 +261,11 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
 		}
 		// ゴールデンクロス時は買い
 		if emaValue1[i-1] < emaValue2[i-1] && emaValue1[i] >= emaValue2[i] {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 		// デッドクロスは売り
 		if emaValue1[i-1] > emaValue2[i-1] && emaValue1[i] <= emaValue2[i] {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 	}
 	return signalEvents
@@ -274,13 +274,13 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int) *SignalEvents {
 /** EMA最適化
 利益が出ないと判断すれば0, 7, 14を返す
 */
-func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, bestPeriod2 int) {
+func (df *DataFrameCandle) OptimizeEma(reOpen bool) (performance float64, bestPeriod1 int, bestPeriod2 int) {
 	bestPeriod1 = 7
 	bestPeriod2 = 14
 	// TODO 数を伸ばしたりして要調整 No.129
 	for period1 := 5; period1 < 30; period1++ {
 		for period2 := 12; period2 < 50; period2++ {
-			signalEvents := df.BackTestEma(period1, period2)
+			signalEvents := df.BackTestEma(period1, period2, reOpen)
 			if signalEvents == nil {
 				continue
 			}
@@ -297,7 +297,7 @@ func (df *DataFrameCandle) OptimizeEma() (performance float64, bestPeriod1 int, 
 }
 
 /** ボリンジャーバンドバックテスト */
-func (df *DataFrameCandle) BackTestBb(n int, k float64) *SignalEvents {
+func (df *DataFrameCandle) BackTestBb(n int, k float64, reOpen bool) *SignalEvents {
 	lenCandles := len(df.Candles)
 	// キャンドル数チェック
 	if lenCandles <= n {
@@ -313,25 +313,25 @@ func (df *DataFrameCandle) BackTestBb(n int, k float64) *SignalEvents {
 		}
 		// 買い（売られ過ぎ）判定
 		if bbDown[i-1] > df.Candles[i-1].Close && bbDown[i] <= df.Candles[i].Close {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 		// 売り（買われ過ぎ）判定
 		if bbUp[i-1] < df.Candles[i-1].Close && bbUp[i] >= df.Candles[i].Close {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 	}
 	return signalEvents
 }
 
 /** ボリンジャーバンド最適化 */
-func (df *DataFrameCandle) OptimizeBb() (performance float64, bestN int, bestK float64) {
+func (df *DataFrameCandle) OptimizeBb(reOpen bool) (performance float64, bestN int, bestK float64) {
 	bestN = 20
 	bestK = 2.0
 	// TDOO 数を増やせば範囲が広がる（例 n := 10 n < 60 TODO No.130
 	for n := 10; n < 20; n++ {
 		// 1.0 , 3.0とかにすると範囲が広がり緩くなる
 		for k := 1.9; k < 2.1; k += 0.1 {
-			signalEvents := df.BackTestBb(n, k)
+			signalEvents := df.BackTestBb(n, k, reOpen)
 			if signalEvents == nil {
 				continue
 			}
@@ -347,7 +347,7 @@ func (df *DataFrameCandle) OptimizeBb() (performance float64, bestN int, bestK f
 }
 
 /** 一目均衡表 */
-func (df *DataFrameCandle) BackTestIchimoku() *SignalEvents {
+func (df *DataFrameCandle) BackTestIchimoku(reOpen bool) *SignalEvents {
 	lenCandles := len(df.Candles)
 
 	if lenCandles <= 52 {
@@ -361,21 +361,21 @@ func (df *DataFrameCandle) BackTestIchimoku() *SignalEvents {
 		if chikou[i-1] < df.Candles[i-1].High && chikou[i] >= df.Candles[i].High &&
 			senkouA[i] < df.Candles[i].Low && senkouB[i] < df.Candles[i].Low &&
 			tenkan[i] > kijun[i] {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 		// 売り判定（三役逆転）
 		if chikou[i-1] > df.Candles[i-1].Low && chikou[i] <= df.Candles[i].Low &&
 			senkouA[i] > df.Candles[i].High && senkouB[i] > df.Candles[i].High &&
 			tenkan[i] < kijun[i] {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 	}
 	return &signalEvents
 }
 
 // 一目均衡表最適化
-func (df *DataFrameCandle) OptimizeIchimoku() (performance float64) {
-	signalEvents := df.BackTestIchimoku()
+func (df *DataFrameCandle) OptimizeIchimoku(reOpen bool) (performance float64) {
+	signalEvents := df.BackTestIchimoku(reOpen)
 	if signalEvents == nil {
 		return 0.0
 	}
@@ -384,7 +384,7 @@ func (df *DataFrameCandle) OptimizeIchimoku() (performance float64) {
 }
 
 /** MACDバックテスト */
-func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSignalPeriod int) *SignalEvents {
+func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSignalPeriod int, reOpen bool) *SignalEvents {
 	lenCandles := len(df.Candles)
 
 	if lenCandles <= macdFastPeriod || lenCandles <= macdSlowPeriod || lenCandles <= macdSignalPeriod {
@@ -399,21 +399,21 @@ func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSign
 			outMACDSignal[i] < 0 &&
 			outMACD[i-1] < outMACDSignal[i-1] &&
 			outMACD[i] >= outMACDSignal[i] {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 		// 売り判定
 		if outMACD[i] > 0 &&
 			outMACDSignal[i] > 0 &&
 			outMACD[i-1] > outMACDSignal[i-1] &&
 			outMACD[i] <= outMACDSignal[i] {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 	}
 	return signalEvents
 }
 
 /** MACD最適化 */
-func (df *DataFrameCandle) OptimizeMacd() (performance float64, bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod int) {
+func (df *DataFrameCandle) OptimizeMacd(reOpen bool) (performance float64, bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod int) {
 	bestMacdFastPeriod = 12
 	bestMacdSlowPeriod = 26
 	bestMacdSignalPeriod = 9
@@ -421,7 +421,7 @@ func (df *DataFrameCandle) OptimizeMacd() (performance float64, bestMacdFastPeri
 	for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
 		for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
 			for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
-				signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod)
+				signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod, reOpen)
 				if signalEvents == nil {
 					continue
 				}
@@ -439,7 +439,7 @@ func (df *DataFrameCandle) OptimizeMacd() (performance float64, bestMacdFastPeri
 }
 
 /** RSIバックテスト */
-func (df *DataFrameCandle) BackTestRsi(period int, buyThread, sellThread float64) *SignalEvents {
+func (df *DataFrameCandle) BackTestRsi(period int, buyThread, sellThread float64, reOpen bool) *SignalEvents {
 	lenCandles := len(df.Candles)
 	if lenCandles <= period {
 		return nil
@@ -452,11 +452,11 @@ func (df *DataFrameCandle) BackTestRsi(period int, buyThread, sellThread float64
 			continue
 		}
 		if values[i-1] < buyThread && values[i] >= buyThread {
-			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Buy(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 
 		if values[i-1] > sellThread && values[i] <= sellThread {
-			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false)
+			signalEvents.Sell(df.ProductCode, df.Candles[i].Time, df.Candles[i].Close, 1.0, false, reOpen)
 		}
 	}
 	return signalEvents
@@ -465,13 +465,13 @@ func (df *DataFrameCandle) BackTestRsi(period int, buyThread, sellThread float64
 /** RSI最適化
 bestBuyThread: 買いのライン, bestSellThread: 売りのライン
 */
-func (df *DataFrameCandle) OptimizeRsi() (performance float64, bestPeriod int, bestBuyThread, bestSellThread float64) {
+func (df *DataFrameCandle) OptimizeRsi(reOpen bool) (performance float64, bestPeriod int, bestBuyThread, bestSellThread float64) {
 	// 各デフォルト
 	bestPeriod = 14
 	bestBuyThread, bestSellThread = 30.0, 70.0
 
 	for period := 5; period < 30; period++ {
-		signalEvents := df.BackTestRsi(period, bestBuyThread, bestSellThread)
+		signalEvents := df.BackTestRsi(period, bestBuyThread, bestSellThread, reOpen)
 		if signalEvents == nil {
 			continue
 		}
@@ -512,12 +512,12 @@ type Ranking struct {
 /**
 どのインディケータでトレードを行うかを返す
 return TradeParams */
-func (df *DataFrameCandle) OptimizeParams() *TradeParams {
-	emaPerformance, emaPeriod1, emaPeriod2 := df.OptimizeEma()
-	bbPerformance, bbN, bbK := df.OptimizeBb()
-	macdPerformance, macdFastPeriod, macdSlowPeriod, macdSignalPeriod := df.OptimizeMacd()
-	ichimokuPerforamcne := df.OptimizeIchimoku()
-	rsiPerformance, rsiPeriod, rsiBuyThread, rsiSellThread := df.OptimizeRsi()
+func (df *DataFrameCandle) OptimizeParams(reOpen bool) *TradeParams {
+	emaPerformance, emaPeriod1, emaPeriod2 := df.OptimizeEma(reOpen)
+	bbPerformance, bbN, bbK := df.OptimizeBb(reOpen)
+	macdPerformance, macdFastPeriod, macdSlowPeriod, macdSignalPeriod := df.OptimizeMacd(reOpen)
+	ichimokuPerforamcne := df.OptimizeIchimoku(reOpen)
+	rsiPerformance, rsiPeriod, rsiBuyThread, rsiSellThread := df.OptimizeRsi(reOpen)
 
 	emaRanking := &Ranking{false, emaPerformance}
 	bbRanking := &Ranking{false, bbPerformance}
