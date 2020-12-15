@@ -4,7 +4,6 @@ import (
 	"app/bitflyer"
 	"app/config"
 	"app/domain/service"
-	"log"
 	"os"
 	"time"
 )
@@ -34,22 +33,25 @@ func StreamIngestionData() {
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			// 取引時間6時~23時（
-			if (time.Now().Hour() < 14 && time.Now().Hour() > 20) && time.Now().Second()%10 == 0 {
+			//if (time.Now().Hour() < 14 && time.Now().Hour() > 20) && time.Now().Second()%10 == 0 {
+			//	ai.Trade(tradeTicker)
+			//} else if time.Now().Hour() > 14 && time.Now().Hour() < 21 {
+			//	if time.Now().Hour() == 14 && time.Now().Minute() == 1 {
+			//		// Truncate
+			//		if !isTruncate {
+			//			isTruncate, _ = service.Truncate()
+			//			if isTruncate {
+			//				log.Println("テーブル削除完了")
+			//			}
+			//		}
+			//	}
+			//	// Truncate フラグ初期化
+			//	if time.Now().Hour() == 20 && time.Now().Minute() == 59 {
+			//		isTruncate = false
+			//	}
+			//}
+			if time.Now().Hour() != 19 && time.Now().Second()%10 == 0 {
 				ai.Trade(tradeTicker)
-			} else if time.Now().Hour() > 14 && time.Now().Hour() < 21 {
-				if time.Now().Hour() == 14 && time.Now().Minute() == 1 {
-					// Truncate
-					if !isTruncate {
-						isTruncate, _ = service.Truncate()
-						if isTruncate {
-							log.Println("テーブル削除完了")
-						}
-					}
-				}
-				// Truncate フラグ初期化
-				if time.Now().Hour() == 20 && time.Now().Minute() == 59 {
-					isTruncate = false
-				}
 			}
 		}
 	}()
