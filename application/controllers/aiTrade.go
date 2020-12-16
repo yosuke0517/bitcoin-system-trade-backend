@@ -136,11 +136,6 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 			size += position.Size
 			pnl += position.Pnl
 		}
-		// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
-		if pnl < 0.0 {
-			log.Println("ショート負け")
-			longReOpen = true
-		}
 		size = math.Round(size*10000) / 10000
 	}
 	if math.IsNaN(size) {
@@ -169,6 +164,11 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		return
 	}
 	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID)
+	// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
+	if pnl < 0.0 {
+		log.Println("ショート負け")
+		longReOpen = true
+	}
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
@@ -220,11 +220,6 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 			size += position.Size
 			pnl += position.Pnl
 		}
-		// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
-		if pnl < 0.0 {
-			log.Println("ロング負け")
-			shortReOpen = true
-		}
 		size = math.Round(size*10000) / 10000
 	}
 	if math.IsNaN(size) {
@@ -252,6 +247,11 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 	}
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
 	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID)
+	// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
+	if pnl < 0.0 {
+		log.Println("ロング負け")
+		shortReOpen = true
+	}
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
@@ -425,8 +425,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if ai.BackTest {
 					orderPrice = price
 				}
-				log.Println("sellOpenのオープン")
-				sellOpen = true
 				//profit = math.Floor(orderPrice*0.996*10000) / 10000
 				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
 				if len(bbDown) >= i {
@@ -444,6 +442,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				}
 				stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+				log.Println("sellOpenのオープン")
+				sellOpen = true
 				if shortReOpen {
 					log.Println("shortReOpen成功")
 					shortReOpen = false
@@ -457,8 +457,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if ai.BackTest {
 					orderPrice = price
 				}
-				log.Println("buyOpenのオープン")
-				buyOpen = true
 				//profit = math.Floor(orderPrice*1.004*10000) / 10000
 				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
 				if len(bbUp) >= i {
@@ -476,6 +474,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				stopLimit = orderPrice * ai.StopLimitPercent
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				log.Println("buyOpenのオープン")
+				buyOpen = true
 				if longReOpen {
 					log.Println("longReOpen成功")
 					longReOpen = false
@@ -493,12 +493,12 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if price >= stopLimit {
 					log.Println("損切り")
 				}
-				log.Println("sellOpenのクローズ")
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
 				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				fmt.Printf("isStopLimit??: %s\n", strconv.FormatBool(price >= stopLimit))
 				fmt.Printf("StopLimitの値:%s\n", strconv.FormatFloat(stopLimit, 'f', -1, 64))
+				log.Println("sellOpenのクローズ")
 				sellOpen = false
 				profit = 0.0
 				stopLimit = 0.0
