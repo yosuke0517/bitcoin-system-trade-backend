@@ -3,7 +3,9 @@ package controllers
 import (
 	"app/bitflyer"
 	"app/config"
+	"app/domain/model"
 	"app/domain/service"
+	"log"
 	"os"
 	"time"
 )
@@ -32,28 +34,38 @@ func StreamIngestionData() {
 	}()
 	go func() {
 		for range time.Tick(1 * time.Second) {
-			if time.Now().Hour() != 19 && time.Now().Second()%10 == 0 {
-				ai.Trade(tradeTicker)
-			}
-			// 取引時間6時~23時
-			//if (time.Now().Hour() < 14 || time.Now().Hour() > 20) && time.Now().Second() % 10 == 0 {
+			//t := time.Now().UTC() // 現在時刻をUTCで取得
+			//
+			//// タイムゾーンからJSTを読み込み
+			//tokyo, err := time.LoadLocation("Asia/Tokyo")
+			//if err != nil {
+			//	fmt.Println(err)
+			//}
+
+			//timeTokyo := t.In(tokyo)
+			//fmt.Printf("time:Tokyo→→→→%s\n", timeTokyo.Truncate(time.Second)) // 2020-05-13 05:14:31.2928348 +0900 JST
+			//if time.Now().Hour() == 19 && time.Now().Second()%10 == 0 {
 			//	ai.Trade(tradeTicker)
-			//} else if time.Now().Hour() == 14 && time.Now().Minute() == 1 {
-			//	eventLength := model.GetAllSignalEventsCount()
-			//	if eventLength % 2 == 0 {
-			//		// Truncate
-			//		if !isTruncate {
-			//			isTruncate, _ = service.Truncate()
-			//			if isTruncate {
-			//				log.Println("テーブル削除完了")
-			//			}
-			//		}
-			//	}
 			//}
-			//// Truncate フラグ初期化
-			//if time.Now().Hour() == 20 && time.Now().Minute() == 59 {
-			//	isTruncate = false
-			//}
+			// 取引時間6時~23時
+			if (time.Now().Hour() < 14 || time.Now().Hour() > 20) && time.Now().Second()%10 == 0 {
+				ai.Trade(tradeTicker)
+			} else if time.Now().Hour() == 14 && time.Now().Minute() == 1 {
+				eventLength := model.GetAllSignalEventsCount()
+				if eventLength%2 == 0 {
+					// Truncate
+					if !isTruncate {
+						isTruncate, _ = service.Truncate()
+						if isTruncate {
+							log.Println("テーブル削除完了")
+						}
+					}
+				}
+			}
+			// Truncate フラグ初期化
+			if time.Now().Hour() == 20 && time.Now().Minute() == 59 {
+				isTruncate = false
+			}
 		}
 	}()
 }
