@@ -34,16 +34,6 @@ func StreamIngestionData() {
 	}()
 	go func() {
 		for range time.Tick(1 * time.Second) {
-			//t := time.Now().UTC() // 現在時刻をUTCで取得
-			//
-			//// タイムゾーンからJSTを読み込み
-			//tokyo, err := time.LoadLocation("Asia/Tokyo")
-			//if err != nil {
-			//	fmt.Println(err)
-			//}
-
-			//timeTokyo := t.In(tokyo)
-			//fmt.Printf("time:Tokyo→→→→%s\n", timeTokyo.Truncate(time.Second)) // 2020-05-13 05:14:31.2928348 +0900 JST
 			//if time.Now().Hour() == 19 && time.Now().Second()%10 == 0 {
 			//	ai.Trade(tradeTicker)
 			//}
