@@ -20,17 +20,21 @@ type SignalEvent struct {
 	Side        string    `json:"side"`
 	Price       float64   `json:"price"`
 	Size        float64   `json:"size"`
+	Atr         int       `json:"atr"`
+	AtrRate     float64   `json:"atr_rate"`
+	Pnl         float64   `json:"pnl"`
+	ReOpen      bool      `json:"re_open"`
 }
 
 /** 売買のイベントを書き込む */
 func (s *SignalEvent) Save() bool {
 	tableName := tableNameSignalEvents
-	cmd := fmt.Sprintf("INSERT INTO %s (time, product_code, side, price, size) VALUES (?, ?, ?, ?, ?)", tableName)
+	cmd := fmt.Sprintf("INSERT INTO %s (time, product_code, side, price, size, atr, atr_rate, pnl, re_open) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", tableName)
 	ins, err := domain.DB.Prepare(cmd)
 	if err != nil {
 		log.Println(err)
 	}
-	_, err = ins.Exec(s.Time, s.ProductCode, s.Side, s.Price, s.Size)
+	_, err = ins.Exec(s.Time, s.ProductCode, s.Side, s.Price, s.Size, s.Atr, s.AtrRate, s.Pnl, s.ReOpen)
 	if err != nil {
 		// 今回は同じ時間で複数売買させない
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -53,7 +57,7 @@ func NewSignalEvents() *SignalEvents {
 // BUY SELL BUY SELL等の情報をlimitを指定して返却する
 func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	tableName := tableNameSignalEvents
-	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableName)
+	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size, atr, atr_rate, pnl, re_open FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"), loadEvents)
 	if err != nil {
 		log.Println(err)
@@ -64,7 +68,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	var signalEvents SignalEvents
 	for rows.Next() {
 		var signalEvent SignalEvent
-		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size)
+		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size, &signalEvent.Atr, &signalEvent.AtrRate, &signalEvent.Pnl, &signalEvent.ReOpen)
 		signalEvents.Signals = append(signalEvents.Signals, signalEvent)
 	}
 	err = rows.Err()
@@ -78,7 +82,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 // BUY SELL BUY SELL等の情報を全て取得する
 func GetAllSignalEvents(backTest bool) *SignalEvents {
 	tableName := tableNameSignalEvents
-	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE product_code = ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
+	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size, atr, atr_rate, pnl, re_open FROM %s WHERE product_code = ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"))
 	if err != nil {
 		log.Println(err)
@@ -89,7 +93,7 @@ func GetAllSignalEvents(backTest bool) *SignalEvents {
 	var signalEvents SignalEvents
 	for rows.Next() {
 		var signalEvent SignalEvent
-		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size)
+		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size, &signalEvent.Atr, &signalEvent.AtrRate, &signalEvent.Pnl, &signalEvent.ReOpen)
 		signalEvents.Signals = append(signalEvents.Signals, signalEvent)
 	}
 	err = rows.Err()
@@ -104,7 +108,7 @@ func GetAllSignalEvents(backTest bool) *SignalEvents {
 func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
 	tableName := tableNameSignalEvents
 	// MySqlの場合はサブクエリにasが必要
-	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size FROM %s WHERE time >= ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
+	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size, atr, atr_rate, pnl, re_open FROM %s WHERE time >= ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, timeTime)
 	if err != nil {
 		log.Println(err)
@@ -115,7 +119,7 @@ func GetSignalEventsAfterTime(timeTime time.Time) *SignalEvents {
 	var signalEvents SignalEvents
 	for rows.Next() {
 		var signalEvent SignalEvent
-		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size)
+		rows.Scan(&signalEvent.Time, &signalEvent.ProductCode, &signalEvent.Side, &signalEvent.Price, &signalEvent.Size, &signalEvent.Atr, &signalEvent.AtrRate, &signalEvent.Pnl, &signalEvent.ReOpen)
 		signalEvents.Signals = append(signalEvents.Signals, signalEvent)
 	}
 	return &signalEvents
@@ -142,6 +146,8 @@ func GetAllSignalEventsCount() int {
 /** 買えるかどうかの判定 */
 func (s *SignalEvents) CanBuy(time time.Time, reOpen bool) bool {
 	lenSignals := len(s.Signals)
+	fmt.Println("CanBuy:s.Signals")
+	fmt.Println(s.Signals)
 	if lenSignals == 0 {
 		return true
 	}
@@ -159,6 +165,8 @@ func (s *SignalEvents) CanBuy(time time.Time, reOpen bool) bool {
 
 /** 売れるかどうかの判定 */
 func (s *SignalEvents) CanSell(time time.Time, reOpen bool) bool {
+	fmt.Println("CanSELL:s.Signals")
+	fmt.Println(s.Signals)
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
 		return true
@@ -177,10 +185,14 @@ func (s *SignalEvents) CanSell(time time.Time, reOpen bool) bool {
 }
 
 /** 購入 */
-func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, save bool, reOpen bool) bool {
+func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float64, save bool, reOpen bool, orderPrice float64, atr int, pnl float64, bbRate float64) bool {
+	atrRate := 0.0
 	canBuy := s.CanBuy(time, reOpen)
 	if !canBuy {
 		return false
+	}
+	if orderPrice > 0 {
+		atrRate = (float64(atr) / orderPrice) * 100
 	}
 	signalEvent := SignalEvent{
 		ProductCode: ProductCode,
@@ -188,6 +200,10 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 		Side:        "BUY",
 		Price:       price,
 		Size:        size,
+		Atr:         atr,
+		AtrRate:     atrRate,
+		Pnl:         pnl,
+		ReOpen:      reOpen,
 	}
 	// バックテスト等でセーブしたくない場合があるためBackTestフラグが必要
 	if save {
@@ -199,10 +215,14 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 }
 
 /** 売却 */
-func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, save bool, reOpen bool) bool {
+func (s *SignalEvents) Sell(productCode string, time time.Time, price, size float64, save bool, reOpen bool, orderPrice float64, atr int, pnl float64, bbRate float64) bool {
+	atrRate := 0.0
 	canSell := s.CanSell(time, reOpen)
 	if !canSell {
 		return false
+	}
+	if orderPrice > 0 {
+		atrRate = (float64(atr) / orderPrice) * 100
 	}
 
 	signalEvent := SignalEvent{
@@ -211,6 +231,10 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 		Side:        "SELL",
 		Price:       price,
 		Size:        size,
+		Atr:         atr,
+		AtrRate:     atrRate,
+		Pnl:         pnl,
+		ReOpen:      reOpen,
 	}
 	// バックテスト等でセーブしたくない場合があるためBackTestフラグが必要
 	if save {

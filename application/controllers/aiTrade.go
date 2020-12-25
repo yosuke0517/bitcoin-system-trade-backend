@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"app/bitflyer"
+	"app/config"
 	"app/domain/model"
 	"app/domain/service"
 	"fmt"
@@ -90,12 +91,13 @@ func (ai *AI) UpdateOptimizeParams(isContinue, reOpen bool) {
 }
 
 /** bitflyer用のBUY */
-func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
+func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
 	orderPrice = 0.0
 	pnl := 0.0
 	size = 0.0
+	atr, _ := service.Atr(30)
 	if ai.BackTest {
-		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen)
+		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
 		return "", couldBuy, orderPrice
 	}
 	// トレード時間の妥当性チェック
@@ -163,22 +165,31 @@ func (ai *AI) Buy(candle model.Candle) (childOrderAcceptanceID string, isOrderCo
 		log.Printf("order=%+v status=no_id（不正なsize指定がされている可能性があります。）", order)
 		return
 	}
-	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID)
-	// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
-	if pnl < 0.0 {
-		log.Println("ショート負け")
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
+	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
+	if config.Config.Continue && len(positionRes) > 0 {
 		longReOpen = true
+	} else if !config.Config.Continue && pnl < 0.0 {
+		// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
+		log.Println("ショート負け")
+		if atrRate > 0.13 {
+			longReOpen = true
+		} else {
+			fmt.Printf("低ボラティリティのためreOpenしません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
+		}
+
 	}
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
 /** bitflyer用のSELL */
-func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
+func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAcceptanceID string, isOrderCompleted bool, orderPrice float64) {
 	orderPrice = 0.0
 	pnl := 0.0
 	size = 0.0
+	atr, _ := service.Atr(30)
 	if ai.BackTest {
-		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen)
+		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
 		return "", couldSell, orderPrice
 	}
 
@@ -246,11 +257,19 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 		return
 	}
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
-	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID)
-	// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
-	if pnl < 0.0 {
-		log.Println("ロング負け")
+	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
+	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
+	if config.Config.Continue && len(positionRes) > 0 {
 		shortReOpen = true
+	} else if !config.Config.Continue && pnl < 0.0 {
+		// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
+		log.Println("ロング負け")
+		if atrRate > 0.13 {
+			shortReOpen = true
+		} else {
+			fmt.Printf("低ボラティリティのためreOpenしません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
+		}
+
 	}
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
@@ -258,6 +277,7 @@ func (ai *AI) Sell(candle model.Candle) (childOrderAcceptanceID string, isOrderC
 var profit float64
 var stopLimit float64
 var isOpening bool
+var atrRate float64
 
 //var count int
 
@@ -270,8 +290,22 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//		return
 	//	}
 	//}
+	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
-	fmt.Println(eventLength)
+	// ボラティリティが低い時はトレードしない
+	fmt.Println(atr)
+	if atr > 0 && eventLength%2 == 0 {
+		atrRate = (float64(atr) / price) * 100
+		if atrRate < 0.10 {
+			fmt.Printf("低ボラティリティのため取引しません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
+			atrRate = 0.0
+			return
+		} else {
+			fmt.Println("atrRate")
+			fmt.Println(atrRate)
+		}
+	}
+	fmt.Printf("eventLength:%s\n", strconv.Itoa(eventLength))
 	// 取引が完了していたらParamsを更新する
 	if eventLength%2 == 0 {
 		// オープンは0秒台のみ
@@ -283,7 +317,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if longReOpen || shortReOpen {
 			reOpen = true
 		}
-		go ai.UpdateOptimizeParams(true, reOpen)
+		fmt.Println(reOpen)
+		//go ai.UpdateOptimizeParams(true, reOpen)
 	}
 	// goroutineの同時実行数を制御
 	isAcquire := ai.TradeSemaphore.TryAcquire(1)
@@ -416,31 +451,36 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	}
 		//}
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
-		if sellOpen == false && buyOpen == false {
+		bbRate := 1.0
+		if len(bbUp) >= i && len(bbDown) >= i {
+			bbRate = bbDown[i] / bbUp[i]
+		}
+		if sellOpen == false && buyOpen == false && bbRate < 0.99 {
 			// 1つでも買いのインディケータがあれば買い
 			if sellPoint > buyPoint || shortReOpen {
 				if !isOpening {
-					_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i])
+					_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
 					if !isOrderCompleted {
 						continue
 					}
+					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 					if ai.BackTest {
 						orderPrice = price
 					}
 					//profit = math.Floor(orderPrice*0.996*10000) / 10000
 					// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
 					if len(bbDown) >= i {
-						profit = bbDown[i]
+						profit = bbDown[i] * 0.997
 						log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					} else {
-						profit = math.Floor(orderPrice*0.997*10000) / 10000
+						profit = math.Floor(orderPrice*0.994*10000) / 10000
 						log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
 					// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
 					if len(bbDown) >= i {
 						if orderPrice < bbDown[i] {
 							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*0.997*10000) / 10000
+							profit = math.Floor(orderPrice*0.994*10000) / 10000
 							log.Println(profit)
 						}
 					}
@@ -458,26 +498,27 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			if buyPoint > sellPoint || longReOpen {
 				if !isOpening {
-					_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i])
+					_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
 					if !isOrderCompleted {
 						continue
 					}
+					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 					if ai.BackTest {
 						orderPrice = price
 					}
 					//profit = math.Floor(orderPrice*1.004*10000) / 10000
 					// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
 					if len(bbUp) >= i {
-						profit = bbUp[i]
+						profit = bbUp[i] * 1.003
 						log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					} else {
-						profit = math.Floor(orderPrice*1.003*10000) / 10000
+						profit = math.Floor(orderPrice*1.006*10000) / 10000
 						log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
 					if len(bbDown) >= i {
 						if orderPrice > bbUp[i] {
 							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*1.003*10000) / 10000
+							profit = math.Floor(orderPrice*1.006*10000) / 10000
 							log.Println(profit)
 						}
 					}
@@ -498,7 +539,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if sellOpen == true || buyOpen == true {
 			// sellOpenのクローズ
 			if sellOpen == true && (buyPoint > 0 || price <= profit || price >= stopLimit) {
-				_, isOrderCompleted, _ := ai.Buy(df.Candles[i])
+				_, isOrderCompleted, _ := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
 				}
@@ -519,7 +560,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			// buyOpenのクローズ
 			if buyOpen == true && (sellPoint > 0 || price >= profit || price <= stopLimit) {
-				_, isOrderCompleted, _ := ai.Sell(df.Candles[i])
+				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
 				}
@@ -595,7 +636,8 @@ func (ai *AI) AdjustSize(size float64) float64 {
 }
 
 /** 注文が確定したかを確認し、signalEventsテーブルに売買情報を保存する */
-func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string) (bool, float64) {
+func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string, pnl, bbRate float64) (bool, float64) {
+	atr, _ := service.Atr(30)
 	params := map[string]string{
 		"product_code":              ai.ProductCode,
 		"child_order_acceptance_id": childOrderAcceptanceID,
@@ -619,14 +661,14 @@ func (ai *AI) WaitUntilOrderComplete(childOrderAcceptanceID string) (bool, float
 				order := listOrders[0]
 				if order.ChildOrderState == "COMPLETED" {
 					if order.Side == "BUY" {
-						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, time.Now().Truncate(time.Second), order.AveragePrice, order.Size, true, longReOpen)
+						couldBuy := ai.SignalEvents.Buy(ai.ProductCode, time.Now().Truncate(time.Second), order.AveragePrice, order.Size, true, longReOpen, order.AveragePrice, atr, pnl, bbRate)
 						if !couldBuy {
 							log.Printf("status=buy childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}
 						return couldBuy, order.AveragePrice
 					}
 					if order.Side == "SELL" {
-						couldSell := ai.SignalEvents.Sell(ai.ProductCode, time.Now().Truncate(time.Second), order.AveragePrice, order.Size, true, shortReOpen)
+						couldSell := ai.SignalEvents.Sell(ai.ProductCode, time.Now().Truncate(time.Second), order.AveragePrice, order.Size, true, shortReOpen, order.AveragePrice, atr, pnl, bbRate)
 						if !couldSell {
 							log.Printf("status=sell childOrderAcceptanceID=%s order=%+v", childOrderAcceptanceID, order)
 						}

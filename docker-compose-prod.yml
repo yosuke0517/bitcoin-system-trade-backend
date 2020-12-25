@@ -1,0 +1,51 @@
+version: '3.7'
+
+services:
+  go:
+    build:
+      dockerfile: Dockerfile
+      # dockerfile: Dockerfile
+      context: .
+      target: build
+    volumes:
+      - ./:/go/app
+    command: >
+      go run main.go
+      sql-migrate up
+    #go run main.go
+    ports:
+      - 8080:8080
+      - 6060:6060
+    security_opt:
+      - apparmor:unconfined
+    tty: true
+    cap_add:
+      - SYS_PTRACE
+    stdin_open: true
+    depends_on:
+      - db
+  db:
+    build:
+      # dockerfileの名前だけ指定する
+      dockerfile: Dockerfile
+      # contextで場所を指定する
+      context: ./db
+    env_file:
+      - .env
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - TZ=Asia/Tokyo
+    ports:
+      - 3306:3306
+    expose:
+      - 3306
+    volumes:
+      - ./dbdata:/var/lib/mysql
+volumes:
+  dbdata:

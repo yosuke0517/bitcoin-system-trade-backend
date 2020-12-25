@@ -22,6 +22,7 @@ type ConfigList struct {
 	DataLimit        int
 	StopLimitPercent float64
 	NumRanking       int
+	Continue         bool
 }
 
 var Config ConfigList
@@ -44,11 +45,13 @@ func init() {
 
 	Config = ConfigList{
 		Durations:        durations,
+		ProductCode:      cfg.Section("gotrade").Key("product_code").String(),
 		TradeDuration:    durations[cfg.Section("gotrade").Key("trade_duration").String()],
 		UsePercent:       cfg.Section("gotrade").Key("use_percent").MustFloat64(),
 		BackTest:         cfg.Section("gotrade").Key("back_test").MustBool(),
 		DataLimit:        cfg.Section("gotrade").Key("data_limit").MustInt(),
 		StopLimitPercent: cfg.Section("gotrade").Key("stop_limit_percent").MustFloat64(),
 		NumRanking:       cfg.Section("gotrade").Key("num_ranking").MustInt(),
+		Continue:         cfg.Section("gotrade").Key("continue").MustBool(),
 	}
 }
