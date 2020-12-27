@@ -146,8 +146,6 @@ func GetAllSignalEventsCount() int {
 /** 買えるかどうかの判定 */
 func (s *SignalEvents) CanBuy(time time.Time, reOpen bool) bool {
 	lenSignals := len(s.Signals)
-	fmt.Println("CanBuy:s.Signals")
-	fmt.Println(s.Signals)
 	if lenSignals == 0 {
 		return true
 	}
@@ -165,8 +163,6 @@ func (s *SignalEvents) CanBuy(time time.Time, reOpen bool) bool {
 
 /** 売れるかどうかの判定 */
 func (s *SignalEvents) CanSell(time time.Time, reOpen bool) bool {
-	fmt.Println("CanSELL:s.Signals")
-	fmt.Println(s.Signals)
 	lenSignals := len(s.Signals)
 	if lenSignals == 0 {
 		return true
