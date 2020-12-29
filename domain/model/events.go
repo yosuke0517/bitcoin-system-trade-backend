@@ -155,7 +155,7 @@ func (s *SignalEvents) CanBuy(time time.Time, reOpen bool) bool {
 		return true
 	}
 	// 同じ時間の場合はreOpenがtrueの時のみ許可する
-	if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && (lastSignal.Time.Before(time) || (lastSignal.Time.Equal(time) && reOpen)) {
+	if (lastSignal.Side == "SELL" || lenSignals%2 == 0) && (lastSignal.Time.Before(time) || (lastSignal.Time.Equal(time))) {
 		return true
 	}
 	return false
@@ -174,7 +174,7 @@ func (s *SignalEvents) CanSell(time time.Time, reOpen bool) bool {
 		return true
 	}
 	// 同じ時間の場合はreOpenがtrueの時のみ許可する
-	if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && (lastSignal.Time.Before(time) || (lastSignal.Time.Equal(time) && reOpen)) {
+	if (lastSignal.Side == "BUY" || lenSignals%2 == 0) && (lastSignal.Time.Before(time) || (lastSignal.Time.Equal(time))) {
 		return true
 	}
 	return false

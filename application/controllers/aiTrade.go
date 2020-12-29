@@ -104,7 +104,9 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	if ai.StartTrade.After(candle.Time) {
 		return
 	}
-
+	if isShortProfit {
+		longReOpen = false
+	}
 	if !ai.SignalEvents.CanBuy(candle.Time, longReOpen) {
 		return
 	}
@@ -167,7 +169,7 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	}
 	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
 	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
-	if config.Config.Continue && len(positionRes) > 0 {
+	if config.Config.Continue && len(positionRes) > 0 && !isShortProfit {
 		longReOpen = true
 	} else if !config.Config.Continue && pnl < 0.0 {
 		// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
@@ -196,7 +198,9 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	if ai.StartTrade.After(candle.Time) {
 		return
 	}
-
+	if isLongProfit {
+		shortReOpen = false
+	}
 	if !ai.SignalEvents.CanSell(candle.Time, shortReOpen) {
 		return
 	}
@@ -259,7 +263,7 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
 	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
 	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
-	if config.Config.Continue && len(positionRes) > 0 {
+	if config.Config.Continue && len(positionRes) > 0 && !isLongProfit {
 		shortReOpen = true
 	} else if !config.Config.Continue && pnl < 0.0 {
 		// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
@@ -278,6 +282,8 @@ var profit float64
 var stopLimit float64
 var isOpening bool
 var atrRate float64
+var isLongProfit bool
+var isShortProfit bool
 
 //var count int
 
@@ -373,7 +379,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//	rsiValues = talib.Rsi(df.Closes(), params.RsiPeriod)
 	//}
 	fmt.Printf("lenCandles:%s\n", strconv.Itoa(lenCandles))
-	for i := 1; i < lenCandles; i++ {
+	for i := lenCandles - 2; i < lenCandles; i++ {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
@@ -463,6 +469,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					if !isOrderCompleted {
 						continue
 					}
+					if isLongProfit {
+						isLongProfit = false
+					}
 					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 					if ai.BackTest {
 						orderPrice = price
@@ -470,17 +479,17 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					//profit = math.Floor(orderPrice*0.996*10000) / 10000
 					// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
 					if len(bbDown) >= i {
-						profit = bbDown[i] * 0.1
+						profit = bbDown[i] * 0.997
 						log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					} else {
-						profit = math.Floor(orderPrice*0.1*10000) / 10000
+						profit = math.Floor(orderPrice*0.997*10000) / 10000
 						log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
 					// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
 					if len(bbDown) >= i {
 						if orderPrice < bbDown[i] {
 							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*0.1*10000) / 10000
+							profit = math.Floor(orderPrice*0.997*10000) / 10000
 							log.Println(profit)
 						}
 					}
@@ -502,6 +511,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					if !isOrderCompleted {
 						continue
 					}
+					if isShortProfit {
+						isShortProfit = false
+					}
 					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 					if ai.BackTest {
 						orderPrice = price
@@ -509,16 +521,16 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					//profit = math.Floor(orderPrice*1.004*10000) / 10000
 					// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
 					if len(bbUp) >= i {
-						profit = bbUp[i] * 2.0
+						profit = bbUp[i] * 1.003
 						log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					} else {
-						profit = math.Floor(orderPrice*2.0*10000) / 10000
+						profit = math.Floor(orderPrice*1.003*10000) / 10000
 						log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
-					if len(bbDown) >= i {
+					if len(bbUp) >= i {
 						if orderPrice > bbUp[i] {
 							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*2.0*10000) / 10000
+							profit = math.Floor(orderPrice*1.003*10000) / 10000
 							log.Println(profit)
 						}
 					}
@@ -543,6 +555,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if !isOrderCompleted {
 					continue
 				}
+				if price <= profit {
+					isShortProfit = true
+				}
 				if price >= stopLimit {
 					log.Println("損切り")
 				}
@@ -563,6 +578,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
+				}
+				if price >= profit {
+					isLongProfit = true
 				}
 				if price <= stopLimit {
 					log.Println("損切り")
