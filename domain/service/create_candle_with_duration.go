@@ -48,6 +48,9 @@ func GetAllCandle(productCode string, duration time.Duration, limit int) (dfCand
 	dfCandle = &model.DataFrameCandle{}
 	dfCandle.ProductCode = productCode
 	dfCandle.Duration = duration
+	if rows == nil {
+		return
+	}
 	for rows.Next() {
 		var candle model.Candle
 		candle.ProductCode = productCode
