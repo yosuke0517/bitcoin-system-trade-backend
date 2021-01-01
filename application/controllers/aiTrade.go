@@ -110,6 +110,8 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	if !ai.SignalEvents.CanBuy(candle.Time, longReOpen) {
 		return
 	}
+	log.Println("ai.SignalEvents")
+	log.Println(ai.SignalEvents)
 	availableCurrency := ai.GetAvailableBalance()
 	// 使用して良い金額は証拠金に3.5をかけた数とする
 	useCurrency := availableCurrency * ai.UsePercent
@@ -175,7 +177,8 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 		// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
 		log.Println("ショート負け")
 		if atrRate > 0.13 {
-			longReOpen = true
+			longReOpen = false
+			//longReOpen = true
 		} else {
 			fmt.Printf("低ボラティリティのためreOpenしません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
 		}
@@ -204,7 +207,6 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	if !ai.SignalEvents.CanSell(candle.Time, shortReOpen) {
 		return
 	}
-
 	availableCurrency := ai.GetAvailableBalance()
 	// 使用して良い金額は証拠金に3.5をかけた数とする
 	useCurrency := availableCurrency * ai.UsePercent
@@ -269,7 +271,8 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 		// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
 		log.Println("ロング負け")
 		if atrRate > 0.13 {
-			shortReOpen = true
+			//shortReOpen = true
+			shortReOpen = false
 		} else {
 			fmt.Printf("低ボラティリティのためreOpenしません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
 		}
@@ -324,7 +327,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			reOpen = true
 		}
 		fmt.Println(reOpen)
-		//go ai.UpdateOptimizeParams(true, reOpen)
+		if ai.OptimizedTradeParams == nil {
+			go ai.UpdateOptimizeParams(true, reOpen)
+		}
 	}
 	// goroutineの同時実行数を制御
 	isAcquire := ai.TradeSemaphore.TryAcquire(1)
@@ -461,6 +466,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if len(bbUp) >= i && len(bbDown) >= i {
 			bbRate = bbDown[i] / bbUp[i]
 		}
+		//if bbRate > 0.99 {
+		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+		//}
+		fmt.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		if sellOpen == false && buyOpen == false && bbRate < 0.99 {
 			// 1つでも買いのインディケータがあれば買い
 			if sellPoint > buyPoint || shortReOpen {
@@ -479,10 +488,13 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					//profit = math.Floor(orderPrice*0.996*10000) / 10000
 					// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
 					if len(bbDown) >= i {
-						profit = bbDown[i] * 0.997
+						//profit = bbDown[i] * 0.997
+						profit = bbDown[i]
+						//profit = orderPrice * 0.9997
 						log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					} else {
 						profit = math.Floor(orderPrice*0.997*10000) / 10000
+						//profit = math.Floor(orderPrice*0.9997*10000) / 10000
 						log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
 					// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
@@ -490,6 +502,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 						if orderPrice < bbDown[i] {
 							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
 							profit = math.Floor(orderPrice*0.997*10000) / 10000
+							//profit = math.Floor(orderPrice*0.9997*10000) / 10000
 							log.Println(profit)
 						}
 					}
@@ -521,16 +534,20 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					//profit = math.Floor(orderPrice*1.004*10000) / 10000
 					// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
 					if len(bbUp) >= i {
-						profit = bbUp[i] * 1.003
+						//profit = bbUp[i] * 1.003
+						profit = bbUp[i]
+						//profit = orderPrice * 1.0003
 						log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					} else {
 						profit = math.Floor(orderPrice*1.003*10000) / 10000
+						//profit = math.Floor(orderPrice*1.0003*10000) / 10000
 						log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
 					if len(bbUp) >= i {
 						if orderPrice > bbUp[i] {
 							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
 							profit = math.Floor(orderPrice*1.003*10000) / 10000
+							//profit = math.Floor(orderPrice* 1.0003*10000) / 10000
 							log.Println(profit)
 						}
 					}
