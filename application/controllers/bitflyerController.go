@@ -14,7 +14,7 @@ var tradeTicker bitflyer.Ticker
 var isTruncate bool
 
 func StreamIngestionData() {
-	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["15m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
+	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["5m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
 
 	var tickerChannl = make(chan bitflyer.Ticker)
 	bitflyerClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
@@ -34,7 +34,7 @@ func StreamIngestionData() {
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			eventLength := model.GetAllSignalEventsCount()
-			if (time.Now().Hour() != 4 && time.Now().Second() == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second() == 0) {
+			if (time.Now().Hour() != 4 && time.Now().Second()%10 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%10 == 0) {
 				ai.Trade(tradeTicker)
 			}
 
