@@ -315,6 +315,10 @@ func OpenStatus() (bool, bool) {
 	sellOpen := false
 	buyOpen := false
 	eventsLength := len(events.Signals)
+	// 0件時は両方false
+	if eventsLength == 0 {
+		return false, false
+	}
 	lastEvent := events.Signals[len(events.Signals)-1]
 	// ロングオープン判定
 	if lastEvent.Side == "BUY" && eventsLength%2 == 1 {
