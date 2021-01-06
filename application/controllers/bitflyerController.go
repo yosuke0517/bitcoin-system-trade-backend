@@ -3,6 +3,7 @@ package controllers
 import (
 	"app/bitflyer"
 	"app/config"
+	"app/domain/model"
 	"app/domain/service"
 	"os"
 	"time"
@@ -32,14 +33,16 @@ func StreamIngestionData() {
 	}()
 	go func() {
 		for range time.Tick(1 * time.Second) {
-			if time.Now().Hour() != 19 && time.Now().Second()%10 == 0 {
+			eventLength := model.GetAllSignalEventsCount()
+			if (time.Now().Hour() != 4 && time.Now().Second()%10 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1) {
 				ai.Trade(tradeTicker)
 			}
+
 			// 取引時間6時~23時
 			//if (time.Now().Hour() < 14 || time.Now().Hour() > 20) && time.Now().Second()%10 == 0 {
 			//	ai.Trade(tradeTicker)
 			//} else if time.Now().Hour() == 14 && time.Now().Minute() == 1 {
-			//	eventLength := model.GetAllSignalEventsCount()
+			//eventLength := model.GetAllSignalEventsCount()
 			//	if eventLength%2 == 0 {
 			//		// Truncate
 			//		if !isTruncate {

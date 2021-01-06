@@ -94,5 +94,4 @@ func Atr(limit int) (int, error) {
 
 func Obv(limit int) {
 	//dfM, err := GetAllCandle(config.Config.ProductCode, time.Duration(time.Minute), limit)
-
 }

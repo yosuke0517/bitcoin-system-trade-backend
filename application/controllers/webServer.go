@@ -254,16 +254,11 @@ func GetLatestCandle() http.HandlerFunc {
 func GetEvents() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		productCode := r.URL.Query().Get("product_code")
-		isBackTest := r.URL.Query().Get("back_test")
-		backTest := false
 		// パラメータで指定がない場合は設定ファイルのものを使う
 		if productCode == "" {
 			productCode = os.Getenv("PRODUCT_CODE")
 		}
-		if isBackTest == "backTest" {
-			backTest = true
-		}
-		events := model.GetAllSignalEvents(backTest)
+		events := model.GetAllSignalEvents()
 		if events == nil {
 			response.Success(w, time.Now())
 		}

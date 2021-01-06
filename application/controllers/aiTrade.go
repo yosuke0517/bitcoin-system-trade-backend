@@ -39,12 +39,6 @@ type AI struct {
 // TODO mutex, singleton
 var Ai *AI
 
-var size float64
-
-var sellOpen bool
-
-var buyOpen bool
-
 var longReOpen bool
 
 var shortReOpen bool
@@ -281,12 +275,15 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
-var profit float64
-var stopLimit float64
-var isOpening bool
-var atrRate float64
+var profit float64    // オープン時に設定する1取引ごとの利益
+var stopLimit float64 // 損切りライン
+var atrRate float64   // atr率
 var isLongProfit bool
 var isShortProfit bool
+var size float64
+var sellOpen bool
+var buyOpen bool
+var isNoPosition bool // 取引中じゃない状態
 
 //var count int
 
@@ -299,6 +296,12 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//		return
 	//	}
 	//}
+	if eventLength%2 == 0 {
+		isNoPosition = true
+	} else {
+		isNoPosition = false
+	}
+	sellOpen, buyOpen = model.OpenStatus()
 	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
 	// ボラティリティが低い時はトレードしない
@@ -470,97 +473,91 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
 		fmt.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-		if sellOpen == false && buyOpen == false && bbRate < 0.99 {
+		if isNoPosition && bbRate < 0.99 {
 			// 1つでも買いのインディケータがあれば買い
 			if sellPoint > buyPoint || shortReOpen {
-				if !isOpening {
-					_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
-					if !isOrderCompleted {
-						continue
-					}
-					if isLongProfit {
-						isLongProfit = false
-					}
-					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-					if ai.BackTest {
-						orderPrice = price
-					}
-					//profit = math.Floor(orderPrice*0.996*10000) / 10000
-					// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
-					if len(bbDown) >= i {
-						//profit = bbDown[i] * 0.997
-						profit = bbDown[i]
-						//profit = orderPrice * 0.9997
-						log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					} else {
-						profit = math.Floor(orderPrice*0.997*10000) / 10000
+				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
+				if !isOrderCompleted {
+					continue
+				}
+				if isLongProfit {
+					isLongProfit = false
+				}
+				log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+				if ai.BackTest {
+					orderPrice = price
+				}
+				//profit = math.Floor(orderPrice*0.996*10000) / 10000
+				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
+				if len(bbDown) >= i {
+					//profit = bbDown[i] * 0.997
+					profit = bbDown[i] * 0.99
+					//profit = orderPrice * 0.9997
+					log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				} else {
+					profit = math.Floor(orderPrice*0.99*10000) / 10000
+					//profit = math.Floor(orderPrice*0.9997*10000) / 10000
+					log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				}
+				// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
+				if len(bbDown) >= i {
+					if orderPrice < bbDown[i] {
+						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
+						profit = math.Floor(orderPrice*0.99*10000) / 10000
 						//profit = math.Floor(orderPrice*0.9997*10000) / 10000
-						log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+						log.Println(profit)
 					}
-					// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
-					if len(bbDown) >= i {
-						if orderPrice < bbDown[i] {
-							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*0.997*10000) / 10000
-							//profit = math.Floor(orderPrice*0.9997*10000) / 10000
-							log.Println(profit)
-						}
-					}
-					stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
-					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					log.Println("sellOpenのオープン")
-					sellOpen = true
-					isOpening = true
-					if shortReOpen {
-						log.Println("shortReOpen成功")
-						shortReOpen = false
-					}
+				}
+				stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
+				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				log.Println("sellOpenのオープン")
+				sellOpen = true
+				if shortReOpen {
+					log.Println("shortReOpen成功")
+					shortReOpen = false
 				}
 			}
 			if buyPoint > sellPoint || longReOpen {
-				if !isOpening {
-					_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
-					if !isOrderCompleted {
-						continue
+				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
+				if !isOrderCompleted {
+					continue
+				}
+				if isShortProfit {
+					isShortProfit = false
+				}
+				log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+				if ai.BackTest {
+					orderPrice = price
+				}
+				//profit = math.Floor(orderPrice*1.004*10000) / 10000
+				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
+				if len(bbUp) >= i {
+					//profit = bbUp[i] * 1.003
+					profit = bbUp[i] * 1.01
+					//profit = orderPrice * 1.0003
+					log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				} else {
+					profit = math.Floor(orderPrice*1.01*10000) / 10000
+					//profit = math.Floor(orderPrice*1.0003*10000) / 10000
+					log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				}
+				if len(bbUp) >= i {
+					if orderPrice > bbUp[i] {
+						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
+						profit = math.Floor(orderPrice*1.01*10000) / 10000
+						//profit = math.Floor(orderPrice* 1.0003*10000) / 10000
+						log.Println(profit)
 					}
-					if isShortProfit {
-						isShortProfit = false
-					}
-					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-					if ai.BackTest {
-						orderPrice = price
-					}
-					//profit = math.Floor(orderPrice*1.004*10000) / 10000
-					// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
-					if len(bbUp) >= i {
-						//profit = bbUp[i] * 1.003
-						profit = bbUp[i]
-						//profit = orderPrice * 1.0003
-						log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					} else {
-						profit = math.Floor(orderPrice*1.003*10000) / 10000
-						//profit = math.Floor(orderPrice*1.0003*10000) / 10000
-						log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					}
-					if len(bbUp) >= i {
-						if orderPrice > bbUp[i] {
-							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*1.003*10000) / 10000
-							//profit = math.Floor(orderPrice* 1.0003*10000) / 10000
-							log.Println(profit)
-						}
-					}
-					stopLimit = orderPrice * ai.StopLimitPercent
-					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					log.Println("buyOpenのオープン")
-					buyOpen = true
-					isOpening = true
-					if longReOpen {
-						log.Println("longReOpen成功")
-						longReOpen = false
-					}
+				}
+				stopLimit = orderPrice * ai.StopLimitPercent
+				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+				log.Println("buyOpenのオープン")
+				buyOpen = true
+				if longReOpen {
+					log.Println("longReOpen成功")
+					longReOpen = false
 				}
 			}
 		}
@@ -587,7 +584,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				sellOpen = false
 				profit = 0.0
 				stopLimit = 0.0
-				isOpening = false
 				// ai.UpdateOptimizeParams(true)
 			}
 			// buyOpenのクローズ
@@ -611,7 +607,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				buyOpen = false
 				profit = 0.0
 				stopLimit = 0.0
-				isOpening = false
 				// ai.UpdateOptimizeParams(true)
 			}
 			// 1つでも買いのインディケータがあれば買い

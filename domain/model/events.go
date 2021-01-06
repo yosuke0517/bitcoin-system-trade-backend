@@ -81,7 +81,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 }
 
 // BUY SELL BUY SELL等の情報を全て取得する
-func GetAllSignalEvents(backTest bool) *SignalEvents {
+func GetAllSignalEvents() *SignalEvents {
 	tableName := tableNameSignalEvents
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size, atr, atr_rate, pnl, re_open, bb_rate FROM %s WHERE product_code = ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
 	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"))
@@ -90,7 +90,9 @@ func GetAllSignalEvents(backTest bool) *SignalEvents {
 		return nil
 	}
 	defer rows.Close()
-
+	if rows == nil {
+		return nil
+	}
 	var signalEvents SignalEvents
 	for rows.Next() {
 		var signalEvent SignalEvent
@@ -305,4 +307,30 @@ func (s *SignalEvents) CollectAfter(time time.Time) *SignalEvents {
 		return &SignalEvents{Signals: s.Signals[i:]}
 	}
 	return nil
+}
+
+// return sellOpen(ショートでのオープン), buyOpen(ロングでのオープン)
+func OpenStatus() (bool, bool) {
+	events := GetAllSignalEvents()
+	sellOpen := false
+	buyOpen := false
+	eventsLength := len(events.Signals)
+	lastEvent := events.Signals[len(events.Signals)-1]
+	// ロングオープン判定
+	if lastEvent.Side == "BUY" && eventsLength%2 == 1 {
+		sellOpen = false
+		buyOpen = true
+		return sellOpen, buyOpen
+	}
+	// ショートオープン判定
+	if lastEvent.Side == "SELL" && eventsLength%2 == 1 {
+		sellOpen = true
+		buyOpen = false
+		return sellOpen, buyOpen
+	}
+	if eventsLength%2 == 0 {
+		sellOpen = false
+		buyOpen = false
+	}
+	return sellOpen, buyOpen
 }
