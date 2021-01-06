@@ -57,58 +57,67 @@ UTC=true
 ```
 
 # 検証
-- 11/21
-  - 条件
-    - 対象足：1分足
-    - オープンインディケータ数：1以上
-    - クローズインディケータ数：1以上
-  - 結果
-    - 収益：-313円
-    - 取引数：16（SIGNAL_EVENTSのレコード的に言うと32）
-    - 所感：急激な値段の変化に対応できない感じ（18時頃まで+1000円程度出てたが急激な変化2取引で一気にマイナス）
-- 11/22
-  - 条件
-    - 対象足：1分足
-    - オープンインディケータ数：2以上
-    - クローズインディケータ数：1以上
-  - 結果
-    - 収益：+70円
-    - 取引数：9（SIGNAL_EVENTSのレコード的に言うと18）
-    - 所感：取引条件を厳しくした割にマイナス取引も多かったため半日で終了。やるとしたらもっと厳しくしないと意味ないっぽい。
-- 11/23
-  - 修正点（あれば）
-    - Profitの処理を見直した：ショート時が適切でなかった
-  - 条件
-    - 対象足：1分足
-    - オープンインディケータ数：1以上
-    - クローズインディケータ数：1以上
-  - 結果
-    - 収益：
-    - 取引数：
-    - 所感：
-- 11/24
-  - ブランチ：feat-dev/Issue38
-  - 修正点（あれば）
-    - EMAの判定に3つ目の指標として50分（時間）線を追加。ゴールデンクロスの判定に以下が加わった
-    - period3（50分線）がperiod1,2より低いこと
-    - オープン条件をEMAに絞った（別でやってもいいかも）←安定してる
-  - 条件
-    - 対象足：1分足
-    - オープンインディケータ数：1以上
-    - クローズインディケータ数：1以上
-  - 結果
-    - 収益：
-    - 取引数：
-    - 所感：  
-- 11/25
-  - ブランチ：feat-dev/Issue39
-  - 修正点（あれば）
-    - オープン条件をEMAに絞った（50分線なしでどうなるか）
-  - 条件
-    - 対象足：1分足
-    - オープンインディケータ数：1以上
-    - クローズインディケータ数：1以上
-  - 結果
-    - 収益：
-    - 取引数：
-    - 所感：  
+- 5分足・オープン（EMA）・クローズ（
+
+
+# ec2のユーザデータで初期化
+```
+#!/bin/bash
+
+# ホスト名
+sed -i 's/^HOSTNAME=[a-zA-Z0-9\.\-]*$/HOSTNAME={ホスト名}/g' /etc/sysconfig/network
+hostname '{ホスト名}'
+
+# タイムゾーン
+cp /usr/share/zoneinfo/Japan /etc/localtime
+sed -i 's|^ZONE=[a-zA-Z0-9\.\-\"]*$|ZONE="Asia/Tokyo”|g' /etc/sysconfig/clock
+
+# 言語設定
+echo "LANG=ja_JP.UTF-8" > /etc/sysconfig/i18n
+
+```
+
+# ec2にGoをインストールする
+- インストール可能なバージョンを確認する
+  - amazon-linux-extras list | grep golang
+- インストールする
+  - sudo amazon-linux-extras install golang1.11
+- gopathの設定
+
+```.bashrc
+
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+
+```
+- 保存してから読み込み
+  - source ~/.bashrc
+  
+- モジュールのインストール
+  - go get
+  
+- sql-migrateのインストール
+  - プロジェクトの階層にて`go get -u github.com/rubenv/sql-migrate/sql-migrate`
+  
+- pathの設定
+```.bash_profile
+PATH=$PATH:$HOME/.local/bin:$HOME/bin
+export PATH="$HOME/go/bin:$PATH"       ←これ追加
+export PATH
+```
+# rds
+- サブネットグループの作成
+  - プライベートサブネットをマルチA-Zで選択
+  
+- パラメータグループの作成
+  - max_prepared_stmt_count：1048576
+  
+# バックグラウンドでの実行と停止
+- go run main.go &
+- 以下でもいけると思ったがバックグランドで実行できなかった。
+  - go build -o bitcoin-system-trade-backend ./main.go
+  - ./bitcoin-system-trade-backend &
+  
+- 参考
+  - [Go製のツールを使うときはパスを通す必要がある](https://kdnakt.hatenablog.com/entry/2019/11/03/080000)
+  - [Amazon Linux2にGolangの1.11をインストールする](https://public-constructor.com/amazon-linux2-golang-installation/)
