@@ -34,7 +34,7 @@ func StreamIngestionData() {
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			eventLength := model.GetAllSignalEventsCount()
-			if (time.Now().Hour() != 4 && time.Now().Second()%10 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%10 == 0) {
+			if (time.Now().Hour() != 4 && time.Now().Second() == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second() == 0) {
 				ai.Trade(tradeTicker)
 			}
 
