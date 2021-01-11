@@ -37,8 +37,8 @@ func init() {
 	durations := map[string]time.Duration{
 		//"1s":  time.Second,
 		//"15s": 15 * time.Second,
-		"30s": time.Second * 30,
-		"1m":  time.Minute,
+		//"30s": time.Second * 30,
+		//"1m":  time.Minute,
 		"5m":  time.Minute * 5,
 		"15m": time.Minute * 15,
 		"1h":  time.Hour,
