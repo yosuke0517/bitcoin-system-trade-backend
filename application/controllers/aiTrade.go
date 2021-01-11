@@ -283,25 +283,35 @@ var isShortProfit bool
 var size float64
 var sellOpen bool
 var buyOpen bool
-var isNoPosition bool // 取引中じゃない状態
+var isNoPosition bool        // 取引中じゃない状態
+var isCandleOpportunity bool // キャンドルでの取引機会（Profit以外を指す）
 
 //var count int
 
 func (ai *AI) Trade(ticker bitflyer.Ticker) {
+	sellOpen, buyOpen = model.OpenStatus()
 	eventLength := model.GetAllSignalEventsCount()
-	//signalEvents := model.GetSignalEventsByCount(1)
-	//if len(signalEvents.Signals) > 0 {
-	//	if eventLength%2 == 0 && signalEvents.Signals[0].Time.Truncate(time.Minute).Add(time.Minute).Equal(time.Now().Truncate(time.Minute)) || signalEvents.Signals[0].Time.Truncate(time.Minute).Equal(time.Now().Truncate(time.Minute)) {
-	//		fmt.Println("前回取引の直後はreturn")
-	//		return
-	//	}
-	//}
+
+	// TODO 関数にできる
 	if eventLength%2 == 0 {
 		isNoPosition = true
 	} else {
 		isNoPosition = false
 	}
-	sellOpen, buyOpen = model.OpenStatus()
+
+	if !shortReOpen && !longReOpen && time.Now().Minute()%5 != 0 && time.Now().Second() != 0 && isNoPosition {
+		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ5分00秒じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
+		return
+	}
+	// 5分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
+	if time.Now().Minute()%5 == 0 && time.Now().Second() == 0 {
+		isCandleOpportunity = true
+	}
+	// 5分00秒じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
+	if !isNoPosition && time.Now().Minute()%5 != 0 && time.Now().Second() != 0 {
+		isCandleOpportunity = false
+		fmt.Println("ポジションがあるため取引に入ります。")
+	}
 	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
 	// ボラティリティが低い時はトレードしない
@@ -391,7 +401,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
-		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
+		if isCandleOpportunity && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
 			// buyOpenのオープン
 			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] { // && pauseDone
@@ -491,20 +501,20 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
 				if len(bbDown) >= i {
 					//profit = bbDown[i] * 0.997
-					profit = bbDown[i] * 0.8
+					profit = bbDown[i] * 0.9
 					//profit = orderPrice * 0.9997
 					log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				} else {
-					profit = math.Floor(orderPrice*0.8*10000) / 10000
-					//profit = math.Floor(orderPrice*0.9997*10000) / 10000
+					profit = math.Floor(orderPrice*0.9*10000) / 10000
+					//profit = math.Floor(orderPrice*0.9995*10000) / 10000
 					log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				}
 				// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
 				if len(bbDown) >= i {
 					if orderPrice < bbDown[i] {
 						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-						profit = math.Floor(orderPrice*0.8*10000) / 10000
-						//profit = math.Floor(orderPrice*0.9997*10000) / 10000
+						profit = math.Floor(orderPrice*0.9*10000) / 10000
+						//profit = math.Floor(orderPrice*0.9995*10000) / 10000
 						log.Println(profit)
 					}
 				}
@@ -534,19 +544,20 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
 				if len(bbUp) >= i {
 					//profit = bbUp[i] * 1.003
-					profit = bbUp[i] * 1.2
+					profit = bbUp[i] * 1.1
+					// profit = bbUp[i]
 					//profit = orderPrice * 1.0003
 					log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				} else {
-					profit = math.Floor(orderPrice*1.2*10000) / 10000
-					//profit = math.Floor(orderPrice*1.0003*10000) / 10000
+					profit = math.Floor(orderPrice*1.1*10000) / 10000
+					//profit = math.Floor(orderPrice*1.0005*10000) / 10000
 					log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				}
 				if len(bbUp) >= i {
 					if orderPrice > bbUp[i] {
 						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-						profit = math.Floor(orderPrice*1.2*10000) / 10000
-						//profit = math.Floor(orderPrice* 1.0003*10000) / 10000
+						profit = math.Floor(orderPrice*1.1*10000) / 10000
+						//profit = math.Floor(orderPrice* 1.0005*10000) / 10000
 						log.Println(profit)
 					}
 				}
