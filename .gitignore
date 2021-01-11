@@ -25,4 +25,5 @@ dbconfig.yml
 # local dbdata
 /dbdata
 
-ignore-info.md
+# other info
+otherignore
