@@ -501,11 +501,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
 				if len(bbDown) >= i {
 					//profit = bbDown[i] * 0.997
-					profit = bbDown[i] * 0.9
+					profit = bbDown[i] * 0.95
 					//profit = orderPrice * 0.9997
 					log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				} else {
-					profit = math.Floor(orderPrice*0.9*10000) / 10000
+					profit = math.Floor(orderPrice*0.95*10000) / 10000
 					//profit = math.Floor(orderPrice*0.9995*10000) / 10000
 					log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				}
@@ -513,7 +513,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if len(bbDown) >= i {
 					if orderPrice < bbDown[i] {
 						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-						profit = math.Floor(orderPrice*0.9*10000) / 10000
+						profit = math.Floor(orderPrice*0.95*10000) / 10000
 						//profit = math.Floor(orderPrice*0.9995*10000) / 10000
 						log.Println(profit)
 					}
@@ -544,19 +544,19 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
 				if len(bbUp) >= i {
 					//profit = bbUp[i] * 1.003
-					profit = bbUp[i] * 1.1
+					profit = bbUp[i] * 1.05
 					// profit = bbUp[i]
 					//profit = orderPrice * 1.0003
 					log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				} else {
-					profit = math.Floor(orderPrice*1.1*10000) / 10000
+					profit = math.Floor(orderPrice*1.05*10000) / 10000
 					//profit = math.Floor(orderPrice*1.0005*10000) / 10000
 					log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				}
 				if len(bbUp) >= i {
 					if orderPrice > bbUp[i] {
 						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-						profit = math.Floor(orderPrice*1.1*10000) / 10000
+						profit = math.Floor(orderPrice*1.05*10000) / 10000
 						//profit = math.Floor(orderPrice* 1.0005*10000) / 10000
 						log.Println(profit)
 					}
