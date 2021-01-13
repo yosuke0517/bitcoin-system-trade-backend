@@ -414,27 +414,27 @@ func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSign
 
 /** MACD最適化 */
 func (df *DataFrameCandle) OptimizeMacd(reOpen bool) (performance float64, bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod int) {
-	bestMacdFastPeriod = 12
+	bestMacdFastPeriod = 10
 	bestMacdSlowPeriod = 26
 	bestMacdSignalPeriod = 9
 
-	for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
-		for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
-			for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
-				signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod, reOpen)
-				if signalEvents == nil {
-					continue
-				}
-				profit := signalEvents.Profit()
-				if performance < profit {
-					performance = profit
-					bestMacdFastPeriod = fastPeriod
-					bestMacdSlowPeriod = slowPeriod
-					bestMacdSignalPeriod = signalPeriod
-				}
-			}
-		}
-	}
+	//for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
+	//	for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
+	//		for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
+	//			signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod, reOpen)
+	//			if signalEvents == nil {
+	//				continue
+	//			}
+	//			profit := signalEvents.Profit()
+	//			if performance < profit {
+	//				performance = profit
+	//				bestMacdFastPeriod = fastPeriod
+	//				bestMacdSlowPeriod = slowPeriod
+	//				bestMacdSignalPeriod = signalPeriod
+	//			}
+	//		}
+	//	}
+	//}
 	return performance, bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod
 }
 
