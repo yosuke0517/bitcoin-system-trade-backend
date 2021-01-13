@@ -323,8 +323,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			atrRate = 0.0
 			return
 		} else {
-			fmt.Println("atrRate")
-			fmt.Println(atrRate)
+			fmt.Printf("atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
 		}
 	}
 	fmt.Printf("eventLength:%s\n", strconv.Itoa(eventLength))
@@ -360,6 +359,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	df, _ := service.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
 	lenCandles := len(df.Candles)
 	params.EmaEnable = true
+	params.MacdEnable = true
 
 	// EMA
 	var emaValues1 []float64
@@ -386,10 +386,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//}
 	//
 	//// MACD
-	//var outMACD, outMACDSignal []float64
-	//if params.MacdEnable {
-	//	outMACD, outMACDSignal, _ = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
-	//}
+	var outMACD, outMACDSignal, outMACDHist []float64
+	if params.MacdEnable {
+		outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
+	}
 	//
 	//// RSI
 	//var rsiValues []float64
@@ -402,9 +402,12 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
 		if isCandleOpportunity && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
-			// ゴールデンクロス TODO 条件を追加すればさらに確度の高いトレードができる ex...df.Volume()[i] > 100とか
+			// ゴールデンクロス with MACD
 			// buyOpenのオープン
-			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] { // && pauseDone
+			//log.Printf("MACDのロング条件??: %s\n", strconv.FormatBool((outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]))
+			//log.Printf("MACDのショート条件??: %s\n", strconv.FormatBool((outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]))
+			// ADD: #63 MACDのメインライン（outMACD[i]）が0より大きい && シグナル（outMACDSignal）より大きい を条件として追加
+			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] { // && pauseDone
 				// fmt.Println("buyOpenのオープン")
 				buyPoint++
 			}
@@ -415,7 +418,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			// デッドクロス
 			// sellOpenのオープン
-			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] { // && pauseDone
+			// ADD: #63 MACDのメインライン（outMACD[i]）が0より小さい && シグナル（outMACDSignal）より小さい を条件として追加
+			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] { // && pauseDone
 				// fmt.Println("sellOpenのオープン")
 				sellPoint++
 			}
@@ -485,7 +489,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		fmt.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		if isNoPosition && bbRate < 0.99 {
 			// 1つでも買いのインディケータがあれば買い
-			if sellPoint > buyPoint || shortReOpen {
+			if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
@@ -528,7 +532,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					shortReOpen = false
 				}
 			}
-			if buyPoint > sellPoint || longReOpen {
+			if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) {
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
@@ -641,20 +645,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			//}
 		}
 	}
-
-	//Pause:
-	//	for {
-	//		for range time.Tick(1 * time.Second) {
-	//			count++
-	//			fmt.Println(count)
-	//			if count == 1200 {
-	//				log.Println("Pause：システムトレードを再開します。")
-	//				count = 0
-	//				goto SystemTrade
-	//			}
-	//		}
-	//	}
-
 }
 
 /** 使用できる証拠金と取引中かどうかを返す
