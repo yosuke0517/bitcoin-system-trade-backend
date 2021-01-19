@@ -104,8 +104,6 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	if !ai.SignalEvents.CanBuy(candle.Time, longReOpen) {
 		return
 	}
-	log.Println("ai.SignalEvents")
-	log.Println(ai.SignalEvents)
 	availableCurrency := ai.GetAvailableBalance()
 	// 使用して良い金額は証拠金に3.5をかけた数とする
 	useCurrency := availableCurrency * ai.UsePercent
@@ -289,7 +287,7 @@ var isCandleOpportunity bool // キャンドルでの取引機会（Profit以外
 //var count int
 
 func (ai *AI) Trade(ticker bitflyer.Ticker) {
-	sellOpen, buyOpen = model.OpenStatus()
+	//sellOpen, buyOpen = model.OpenStatus()
 	eventLength := model.GetAllSignalEventsCount()
 
 	// TODO 関数にできる
