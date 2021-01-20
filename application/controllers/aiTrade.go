@@ -297,16 +297,16 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		hasPosition = true
 	}
 
-	if !shortReOpen && !longReOpen && time.Now().Minute() != 0 && !hasPosition {
+	if !shortReOpen && !longReOpen && time.Now().Minute()%15 != 0 && !hasPosition {
 		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ00分じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
 		return
 	}
 	// 5分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
-	if time.Now().Minute() == 0 {
+	if time.Now().Minute()%15 == 0 {
 		isCandleOpportunity = true
 	}
 	// 00分じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
-	if hasPosition && time.Now().Minute() != 0 {
+	if hasPosition && time.Now().Minute()%15 != 0 {
 		isCandleOpportunity = false
 		fmt.Println("ポジションがあるかつ、00分じゃないためProfitでの取引に入ります。")
 	}
