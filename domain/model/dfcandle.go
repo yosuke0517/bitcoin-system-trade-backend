@@ -277,22 +277,23 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int, reOpen bool) *Signa
 func (df *DataFrameCandle) OptimizeEma(reOpen bool) (performance float64, bestPeriod1 int, bestPeriod2 int) {
 	bestPeriod1 = 7
 	bestPeriod2 = 14
+	performance = 1
 	// TODO 数を伸ばしたりして要調整 No.129
-	for period1 := 5; period1 < 30; period1++ {
-		for period2 := 12; period2 < 50; period2++ {
-			signalEvents := df.BackTestEma(period1, period2, reOpen)
-			if signalEvents == nil {
-				continue
-			}
-			// それぞれの利益を出して1番良い成績を残す日数を探す
-			profit := signalEvents.Profit()
-			if performance < profit {
-				performance = profit
-				bestPeriod1 = period1
-				bestPeriod2 = period2
-			}
-		}
-	}
+	//for period1 := 5; period1 < 30; period1++ {
+	//	for period2 := 12; period2 < 50; period2++ {
+	//		signalEvents := df.BackTestEma(period1, period2, reOpen)
+	//		if signalEvents == nil {
+	//			continue
+	//		}
+	//		// それぞれの利益を出して1番良い成績を残す日数を探す
+	//		profit := signalEvents.Profit()
+	//		if performance < profit {
+	//			performance = profit
+	//			bestPeriod1 = period1
+	//			bestPeriod2 = period2
+	//		}
+	//	}
+	//}
 	return performance, bestPeriod1, bestPeriod2
 }
 
@@ -417,7 +418,7 @@ func (df *DataFrameCandle) OptimizeMacd(reOpen bool) (performance float64, bestM
 	bestMacdFastPeriod = 10
 	bestMacdSlowPeriod = 26
 	bestMacdSignalPeriod = 9
-
+	performance = 1
 	//for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
 	//	for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
 	//		for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {

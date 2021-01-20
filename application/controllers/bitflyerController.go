@@ -6,15 +6,17 @@ import (
 	"app/domain/model"
 	"app/domain/service"
 	"os"
+	"strconv"
 	"time"
 )
 
 var tradeTicker bitflyer.Ticker
 
 var isTruncate bool
+var isProduction, _ = strconv.ParseBool(os.Getenv("PRODUCTION"))
 
 func StreamIngestionData() {
-	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["5m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
+	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["1h"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
 
 	var tickerChannl = make(chan bitflyer.Ticker)
 	bitflyerClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
@@ -34,10 +36,15 @@ func StreamIngestionData() {
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			eventLength := model.GetAllSignalEventsCount()
-			if (time.Now().Hour() != 4 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
-				ai.Trade(tradeTicker)
+			if isProduction {
+				if (time.Now().Hour() != 4 && time.Now().Second()%30 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%30 == 0) {
+					ai.Trade(tradeTicker)
+				}
+			} else {
+				if (time.Now().Hour() != 19 && time.Now().Second()%30 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%30 == 0) {
+					ai.Trade(tradeTicker)
+				}
 			}
-
 			// 取引時間6時~23時
 			//if (time.Now().Hour() < 14 || time.Now().Hour() > 20) && time.Now().Second()%10 == 0 {
 			//	ai.Trade(tradeTicker)
