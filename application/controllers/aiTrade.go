@@ -302,13 +302,13 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		return
 	}
 	// 5分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
-	if time.Now().Minute()%15 == 0 {
+	if time.Now().Minute()%15 == 0 && time.Now().Second() >= 0 && time.Now().Second() < 5 {
 		isCandleOpportunity = true
 	}
 	// 00分じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
-	if hasPosition && time.Now().Minute()%15 != 0 {
+	if hasPosition && time.Now().Minute()%15 != 0 && time.Now().Second() > 5 {
 		isCandleOpportunity = false
-		fmt.Println("ポジションがあるかつ、00分じゃないためProfitでの取引に入ります。")
+		fmt.Println("ポジションがあるかつ、15分区切りじゃないかつ00秒じゃないProfitでの取引に入ります。")
 	}
 	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
