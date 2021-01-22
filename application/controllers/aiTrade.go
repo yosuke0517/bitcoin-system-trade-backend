@@ -384,10 +384,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//}
 	//
 	//// MACD
-	var outMACD, outMACDSignal, outMACDHist []float64
-	if params.MacdEnable {
-		outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
-	}
+	//var outMACD, outMACDSignal, outMACDHist []float64
+	//if params.MacdEnable {
+	//	outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
+	//}
 	//
 	//// RSI
 	//var rsiValues []float64
