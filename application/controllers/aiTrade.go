@@ -489,7 +489,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
 		fmt.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-		if isNoPosition && bbRate < 0.99 {
+		if isNoPosition && bbRate < 0.99 && isCandleOpportunity {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			if sellPoint > buyPoint || shortReOpen {
