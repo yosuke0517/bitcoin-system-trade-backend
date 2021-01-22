@@ -37,11 +37,11 @@ func StreamIngestionData() {
 		for range time.Tick(1 * time.Second) {
 			eventLength := model.GetAllSignalEventsCount()
 			if isProduction {
-				if (time.Now().Hour() != 4 && time.Now().Second()%30 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%30 == 0) {
+				if (time.Now().Hour() != 4 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
 					ai.Trade(tradeTicker)
 				}
 			} else {
-				if (time.Now().Hour() != 19 && time.Now().Second()%30 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%30 == 0) {
+				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
 					ai.Trade(tradeTicker)
 				}
 			}

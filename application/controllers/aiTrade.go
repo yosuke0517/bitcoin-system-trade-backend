@@ -281,7 +281,7 @@ var isShortProfit bool
 var size float64
 var sellOpen bool
 var buyOpen bool
-var hasPosition bool         // 取引中状態
+var isNoPosition bool        // 取引中じゃない状態
 var isCandleOpportunity bool // キャンドルでの取引機会（Profit以外を指す）
 
 //var count int
@@ -292,23 +292,23 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 
 	// TODO 関数にできる
 	if eventLength%2 == 0 {
-		hasPosition = false
+		isNoPosition = true
 	} else {
-		hasPosition = true
+		isNoPosition = false
 	}
 
-	if !shortReOpen && !longReOpen && time.Now().Minute()%15 != 0 && !hasPosition {
-		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ00分じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
+	if !shortReOpen && !longReOpen && time.Now().Minute()%15 != 0 && time.Now().Second() != 0 && isNoPosition {
+		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ15分00秒じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
 		return
 	}
-	// 5分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
-	if time.Now().Minute()%15 == 0 && time.Now().Second() >= 0 && time.Now().Second() < 5 {
+	// 15分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
+	if time.Now().Minute()%15 == 0 && time.Now().Second() == 0 {
 		isCandleOpportunity = true
 	}
-	// 00分じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
-	if hasPosition && time.Now().Minute()%15 != 0 && time.Now().Second() > 5 {
+	// 5分00秒じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
+	if !isNoPosition && time.Now().Minute()%15 != 0 && time.Now().Second() != 0 {
 		isCandleOpportunity = false
-		fmt.Println("ポジションがあるかつ、15分区切りじゃないかつ00秒じゃないProfitでの取引に入ります。")
+		fmt.Println("ポジションがあるため取引に入ります。")
 	}
 	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
@@ -357,7 +357,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	df, _ := service.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
 	lenCandles := len(df.Candles)
 	params.EmaEnable = true
-	// params.MacdEnable = true
+	params.MacdEnable = true
 
 	// EMA
 	var emaValues1 []float64
@@ -384,10 +384,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//}
 	//
 	//// MACD
-	// var outMACD, outMACDSignal, outMACDHist []float64
-	//if params.MacdEnable {
-	//	outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
-	//}
+	var outMACD, outMACDSignal, outMACDHist []float64
+	if params.MacdEnable {
+		outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
+	}
 	//
 	//// RSI
 	//var rsiValues []float64
@@ -402,26 +402,30 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if isCandleOpportunity && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス with MACD
 			// buyOpenのオープン
+			//log.Printf("MACDのロング条件??: %s\n", strconv.FormatBool((outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]))
+			//log.Printf("MACDのショート条件??: %s\n", strconv.FormatBool((outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]))
+			// ADD: #63 MACDのメインライン（outMACD[i]）が0より大きい && シグナル（outMACDSignal）より大きい を条件として追加
+			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] { // && pauseDone
+			//	buyPoint++
+			//}
+			// 15分足への変更に伴い一旦EMAのみ
 			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] { // && pauseDone
 				buyPoint++
 			}
-			// ADD: #63 MACDのメインライン（outMACD[i]）が0より大きい && シグナル（outMACDSignal）より大きい を条件として追加
-			//if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] { // && pauseDone
-			//	buyPoint++
-			//}
 			// buyOpenのクローズ
 			if buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
 				sellPoint++
 			}
 			// デッドクロス
 			// sellOpenのオープン
+			// ADD: #63 MACDのメインライン（outMACD[i]）が0より小さい && シグナル（outMACDSignal）より小さい を条件として追加
+			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] { // && pauseDone
+			//	sellPoint++
+			//}
+			// 15分足への変更に伴い一旦EMAのみ
 			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] { // && pauseDone
 				sellPoint++
 			}
-			// ADD: #63 MACDのメインライン（outMACD[i]）が0より小さい && シグナル（outMACDSignal）より小さい を条件として追加
-			//if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] { // && pauseDone
-			//	sellPoint++
-			//}
 			// sellOpenのクローズ
 			if sellOpen && !buyOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
 				buyPoint++
@@ -485,9 +489,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
 		fmt.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-		if !hasPosition && bbRate < 0.99 {
+		if isNoPosition && bbRate < 0.99 {
 			// 1つでも買いのインディケータがあれば買い
-			//if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) { TODO 時間足ではMACD不要っぽいので一旦コメントアウト
+			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			if sellPoint > buyPoint || shortReOpen {
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
@@ -531,7 +535,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					shortReOpen = false
 				}
 			}
-			//if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) { TODO 時間足ではMACD不要っぽいので一旦コメントアウト
+			// #64
+			//if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) {
 			if buyPoint > sellPoint || longReOpen {
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
