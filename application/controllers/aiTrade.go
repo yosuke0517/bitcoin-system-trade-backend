@@ -409,7 +409,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			//	buyPoint++
 			//}
 			// 15分足への変更に伴い一旦EMAのみ
-			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] { // && pauseDone
+			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
 				buyPoint++
 			}
 			// buyOpenのクローズ
@@ -488,10 +488,13 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//if bbRate > 0.99 {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
-		fmt.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+		log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+		log.Printf("isCandleOpportunity:%s\n", strconv.FormatBool(isCandleOpportunity))
+		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		if isNoPosition && bbRate < 0.99 && isCandleOpportunity {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
+			log.Printf("ロング？？sellPoint > buyPoint:%s\n", strconv.FormatBool(sellPoint > buyPoint))
 			if sellPoint > buyPoint || shortReOpen {
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
@@ -537,6 +540,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			}
 			// #64
 			//if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) {
+			log.Printf("ショート？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
 			if buyPoint > sellPoint || longReOpen {
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
@@ -583,8 +587,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		}
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
 		if sellOpen == true || buyOpen == true {
-			// sellOpenのクローズ
-			if sellOpen == true && (buyPoint > 0 || price <= profit || price >= stopLimit) {
+			// sellOpenのクローズ（buyPointにてクローズする場合は15分単位のみ）
+			//if sellOpen == true && (buyPoint > 0 || price <= profit || price >= stopLimit) {
+			if sellOpen == true && (buyPoint > 0 && time.Now().Minute()%15 == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit) {
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
@@ -606,8 +611,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				stopLimit = 0.0
 				// ai.UpdateOptimizeParams(true)
 			}
-			// buyOpenのクローズ
-			if buyOpen == true && (sellPoint > 0 || price >= profit || price <= stopLimit) {
+			// buyOpenのクローズ（sellPointにてクローズする場合は15分単位のみ）
+			if buyOpen == true && (sellPoint > 0 && time.Now().Minute()%15 == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit) {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					continue
