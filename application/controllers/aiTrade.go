@@ -400,7 +400,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
-		if isCandleOpportunity && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
+		if (isCandleOpportunity || (shortReOpen || longReOpen)) && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス with MACD
 			// buyOpenのオープン
 			//log.Printf("MACDのロング条件??: %s\n", strconv.FormatBool((outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]))
@@ -494,7 +494,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
-		if isNoPosition && bbRate < 0.99 && isCandleOpportunity {
+		if isNoPosition && bbRate < 0.99 && (isCandleOpportunity || (shortReOpen || longReOpen)) {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
@@ -592,9 +592,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if sellOpen || buyOpen {
 			// sellOpenのクローズ（buyPointにてクローズする場合は15分単位のみ）
 			//if sellOpen == true && (buyPoint > 0 || price <= profit || price >= stopLimit) {
+			log.Printf("クローズsellOpen?:%s\n", strconv.FormatBool(sellOpen))
+			log.Printf("クローズショート？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
 			if sellOpen && (buyPoint > 0 && time.Now().Minute()%15 == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit) {
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i], price, bbRate)
-				log.Printf("クローズsellOpen?:%s\n", strconv.FormatBool(sellOpen))
 				if !isOrderCompleted {
 					continue
 				}
@@ -616,9 +617,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				// ai.UpdateOptimizeParams(true)
 			}
 			// buyOpenのクローズ（sellPointにてクローズする場合は15分単位のみ）
+			log.Printf("クローズbuyOpen?:%s\n", strconv.FormatBool(buyOpen))
+			log.Printf("クローズロングbuyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint < sellPoint))
 			if buyOpen && (sellPoint > 0 && time.Now().Minute()%15 == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit) {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
-				log.Printf("クローズbuyOpen?:%s\n", strconv.FormatBool(buyOpen))
 				if !isOrderCompleted {
 					continue
 				}
