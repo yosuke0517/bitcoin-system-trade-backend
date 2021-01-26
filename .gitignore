@@ -16,6 +16,9 @@ config.ini
 # log
 debug.log
 
+# develop info
+.other
+
 # env
 .env
 
