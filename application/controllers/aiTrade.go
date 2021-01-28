@@ -384,11 +384,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	//	tenkan, kijun, senkouA, senkouB, chikou = tradingalgo.IchimokuCloud(df.Closes())
 	//}
 	//
-	//// MACD
-	//var outMACD, outMACDSignal, outMACDHist []float64
-	//if params.MacdEnable {
-	//	outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
-	//}
+	// MACD
+	var outMACD, outMACDSignal, outMACDHist []float64
+	if params.MacdEnable {
+		outMACD, outMACDSignal, outMACDHist = talib.Macd(df.Closes(), params.MacdFastPeriod, params.MacdSlowPeriod, params.MacdSignalPeriod)
+	}
 	//
 	//// RSI
 	//var rsiValues []float64
@@ -406,7 +406,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			//log.Printf("MACDのロング条件??: %s\n", strconv.FormatBool((outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]))
 			//log.Printf("MACDのショート条件??: %s\n", strconv.FormatBool((outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]))
 			// ADD: #63 MACDのメインライン（outMACD[i]）が0より大きい && シグナル（outMACDSignal）より大きい を条件として追加
-			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] { // && pauseDone
+			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] {
 			//	buyPoint++
 			//}
 			// 15分足への変更に伴い一旦EMAのみ
@@ -414,21 +414,21 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				buyPoint++
 			}
 			// buyOpenのクローズ
-			if buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] {
+			if buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] {
 				sellPoint++
 			}
 			// デッドクロス
 			// sellOpenのオープン
 			// ADD: #63 MACDのメインライン（outMACD[i]）が0より小さい && シグナル（outMACDSignal）より小さい を条件として追加
-			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] { // && pauseDone
+			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] {
 			//	sellPoint++
 			//}
 			// 15分足への変更に伴い一旦EMAのみ
 			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] { // && pauseDone
 				sellPoint++
 			}
-			// sellOpenのクローズ
-			if sellOpen && !buyOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
+			// sellOpenのクローズ ADD: #63 MACDのメインライン（outMACD[i]）が0より大きい && シグナル（outMACDSignal）より大きい を条件として追加
+			if sellOpen && !buyOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] {
 				buyPoint++
 			}
 		}
