@@ -98,6 +98,7 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	if ai.StartTrade.After(candle.Time) {
 		return
 	}
+	// ショートの利益確定後にロングでインしないようにreOpenをfalseにする
 	if isShortProfit {
 		longReOpen = false
 	}
@@ -165,16 +166,10 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
 	if config.Config.Continue && len(positionRes) > 0 && !isShortProfit {
 		longReOpen = true
-	} else if !config.Config.Continue && pnl < 0.0 {
-		// pnlがマイナスの場合はショートが失敗したと判断し、ロングで入るようにフラグを立てる
-		log.Println("ショート負け")
-		if atrRate > 0.13 {
-			longReOpen = false
-			//longReOpen = true
-		} else {
-			fmt.Printf("低ボラティリティのためreOpenしません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
-		}
-
+	}
+	// StopLimit後はreOpenしない
+	if (config.Config.Continue && isStopLimit) || !config.Config.Continue {
+		longReOpen = false
 	}
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
@@ -193,6 +188,7 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	if ai.StartTrade.After(candle.Time) {
 		return
 	}
+	// ロングの利益確定後にショートでインしないようにreOpenをfalseにする
 	if isLongProfit {
 		shortReOpen = false
 	}
@@ -256,19 +252,13 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	}
 	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
 	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
-	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
+	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない。ADD:ロングにて利益確定済みじゃないとき（isLongProfit）
 	if config.Config.Continue && len(positionRes) > 0 && !isLongProfit {
 		shortReOpen = true
-	} else if !config.Config.Continue && pnl < 0.0 {
-		// pnlがマイナスの場合はロングが失敗したと判断し、ショートで入るようにフラグを立てる
-		log.Println("ロング負け")
-		if atrRate > 0.13 {
-			//shortReOpen = true
-			shortReOpen = false
-		} else {
-			fmt.Printf("低ボラティリティのためreOpenしません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
-		}
-
+	}
+	// StopLimit後はreOpenしない
+	if (config.Config.Continue && isStopLimit) || !config.Config.Continue {
+		shortReOpen = false
 	}
 	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
@@ -283,6 +273,7 @@ var sellOpen bool
 var buyOpen bool
 var isNoPosition bool        // 取引中じゃない状態
 var isCandleOpportunity bool // キャンドルでの取引機会（Profit以外を指す）
+var isStopLimit bool         // 損切りを行った後にreOpenさせないためのフラグ
 
 //var count int
 
@@ -503,6 +494,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if !isOrderCompleted {
 					continue
 				}
+				// StopLimit後のオープンの場合はisStopLimitを初期化する
+				if isStopLimit {
+					isStopLimit = false
+				}
+				// ロングの利確後のオープンの場合はisLongProfitを初期化する
 				if isLongProfit {
 					isLongProfit = false
 				}
@@ -549,6 +545,11 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				if !isOrderCompleted {
 					continue
 				}
+				// StopLimit後のオープンの場合はisStopLimitを初期化する
+				if isStopLimit {
+					isStopLimit = false
+				}
+				// ショートの利確後のオープンの場合はisShortProfitを初期化する
 				if isShortProfit {
 					isShortProfit = false
 				}
@@ -607,6 +608,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				}
 				if price >= stopLimit {
 					log.Println("損切り")
+					isStopLimit = true
 				}
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
@@ -637,6 +639,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				}
 				if price <= stopLimit {
 					log.Println("損切り")
+					isStopLimit = true
 				}
 				log.Println("buyOpenのクローズ")
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))

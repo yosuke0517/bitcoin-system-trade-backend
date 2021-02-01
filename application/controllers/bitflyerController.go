@@ -43,7 +43,7 @@ func StreamIngestionData() {
 				}
 				if time.Now().Hour() == 4 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
 					if !isTruncate {
-						// isTruncate, _ = service.Truncate()
+						isTruncate, _ = service.Truncate()
 						if isTruncate {
 							log.Println("テーブル削除完了")
 							isTruncate = false
@@ -56,7 +56,7 @@ func StreamIngestionData() {
 				}
 				if time.Now().Hour() == 19 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
 					if !isTruncate {
-						// isTruncate, _ = service.Truncate()
+						isTruncate, _ = service.Truncate()
 						if isTruncate {
 							log.Println("テーブル削除完了")
 							isTruncate = false
