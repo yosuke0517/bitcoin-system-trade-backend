@@ -485,7 +485,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
-		if isNoPosition && bbRate < 0.99 && (isCandleOpportunity || (shortReOpen || longReOpen)) {
+		if isNoPosition && bbRate < 0.98 && (isCandleOpportunity || (shortReOpen || longReOpen)) {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
