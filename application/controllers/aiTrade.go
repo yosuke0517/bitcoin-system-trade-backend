@@ -278,7 +278,6 @@ var isStopLimit bool         // 損切りを行った後にreOpenさせないた
 //var count int
 
 func (ai *AI) Trade(ticker bitflyer.Ticker) {
-	//sellOpen, buyOpen = model.OpenStatus()
 	eventLength := model.GetAllSignalEventsCount()
 
 	// TODO 関数にできる
@@ -474,6 +473,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//}
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
 		bbRate := 1.0
+		if bbUp == nil || bbDown == nil {
+			log.Println("bbUpまたはbbDownがnilのため取引をしません")
+		}
 		if len(bbUp) >= i && len(bbDown) >= i {
 			bbRate = bbDown[i] / bbUp[i]
 		}

@@ -29,7 +29,7 @@ func ApiCandleHandler() http.HandlerFunc {
 		duration := r.URL.Query().Get("duration")
 		if duration == "" {
 			// デフォルトは分とする
-			duration = "1m"
+			duration = "15m"
 		}
 		durationTime := config.Config.Durations[duration]
 

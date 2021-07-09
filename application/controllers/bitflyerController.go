@@ -37,8 +37,17 @@ func StreamIngestionData() {
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			eventLength := model.GetAllSignalEventsCount()
+			df, _ := service.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
+			lenCandles := len(df.Candles)
+			// キャンドル数が設定数ない場合取引しない
+			candleLengthMin, _ := strconv.Atoi(os.Getenv("CANDLE_LENGTH_MIN"))
+			if lenCandles < candleLengthMin {
+				// めっっちゃログ出るからとりあえずコメントアウト
+				//fmt.Printf("キャンドル数が設定値に満たないため取引しません。現在のキャンドル数: %s", strconv.Itoa(lenCandles))
+				continue
+			}
 			if isProduction {
-				if (time.Now().Hour() != 4 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
+				if (time.Now().Hour() != 4 && time.Now().Second()%20 == 1000) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 1000) {
 					ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 4 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
@@ -51,7 +60,7 @@ func StreamIngestionData() {
 					}
 				}
 			} else {
-				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
+				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 1000) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 1000) {
 					ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 19 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
