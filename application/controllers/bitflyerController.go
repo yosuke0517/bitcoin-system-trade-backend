@@ -5,7 +5,6 @@ import (
 	"app/config"
 	"app/domain/model"
 	"app/domain/service"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -47,30 +46,32 @@ func StreamIngestionData() {
 				continue
 			}
 			if isProduction {
-				if (time.Now().Hour() != 4 && time.Now().Second()%20 == 1000) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 1000) {
+				if (time.Now().Hour() != 4 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
 					ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 4 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
-					if !isTruncate {
-						isTruncate, _ = service.Truncate()
-						if isTruncate {
-							log.Println("テーブル削除完了")
-							isTruncate = false
-						}
-					}
+					// Truncateは一旦なし
+					//if !isTruncate {
+					//	isTruncate, _ = service.Truncate()
+					//	if isTruncate {
+					//		log.Println("テーブル削除完了")
+					//		isTruncate = false
+					//	}
+					//}
 				}
 			} else {
-				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 1000) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 1000) {
+				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
 					ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 19 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
-					if !isTruncate {
-						isTruncate, _ = service.Truncate()
-						if isTruncate {
-							log.Println("テーブル削除完了")
-							isTruncate = false
-						}
-					}
+					// Truncateは一旦なし
+					//if !isTruncate {
+					//	isTruncate, _ = service.Truncate()
+					//	if isTruncate {
+					//		log.Println("テーブル削除完了")
+					//		isTruncate = false
+					//	}
+					//}
 				}
 			}
 			// 取引時間6時~23時
