@@ -5,6 +5,7 @@ import (
 	"app/config"
 	"app/domain/model"
 	"app/domain/service"
+	"app/utils"
 	"os"
 	"strconv"
 	"time"
@@ -46,6 +47,9 @@ func StreamIngestionData() {
 				continue
 			}
 			if isProduction {
+				if time.Now().Hour() == 23 && time.Now().Minute() == 59 && time.Now().Second() == 50 {
+					utils.UploadLogFile()
+				}
 				if (time.Now().Hour() != 4 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
 					ai.Trade(tradeTicker)
 				}
