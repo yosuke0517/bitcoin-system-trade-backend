@@ -5,7 +5,6 @@ import (
 	"app/config"
 	"app/domain/model"
 	"app/domain/service"
-	"app/utils"
 	"fmt"
 	"github.com/markcheno/go-talib"
 	"log"
@@ -92,7 +91,6 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	size = 0.0
 	atr, _ := service.Atr(30)
 	if ai.BackTest {
-		utils.SendLine("buy: " + strconv.FormatFloat(candle.Close, 'f', -1, 64))
 		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
 		return "", couldBuy, orderPrice
 	}
@@ -183,7 +181,6 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	size = 0.0
 	atr, _ := service.Atr(30)
 	if ai.BackTest {
-		utils.SendLine("sell: " + strconv.FormatFloat(candle.Close, 'f', -1, 64))
 		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
 		return "", couldSell, orderPrice
 	}
