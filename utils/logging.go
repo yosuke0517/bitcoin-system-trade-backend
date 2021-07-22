@@ -39,7 +39,7 @@ func UploadLogFile() {
 
 	day := time.Now()
 	fileNameSuffix := day.Format("2006-01-02")
-	bucketName := "system-trade-log"
+	bucketName := os.Getenv("BACKET_NAME")
 	objectKey := fileNameSuffix
 
 	// Uploaderを作成し、ローカルファイルをアップロード
