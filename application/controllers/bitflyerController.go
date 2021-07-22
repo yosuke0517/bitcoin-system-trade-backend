@@ -65,7 +65,7 @@ func StreamIngestionData() {
 				}
 			} else {
 				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
-					//ai.Trade(tradeTicker)
+					ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 19 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
 					// Truncateは一旦なし
