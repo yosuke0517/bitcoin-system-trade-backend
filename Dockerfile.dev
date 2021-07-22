@@ -1,4 +1,4 @@
-FROM golang:1.14-alpine3.11 as build
+FROM golang:1.15-alpine3.13 as build
 
 LABEL maintainer="https://github.com/yosuke0517"
 
@@ -24,7 +24,7 @@ ENV GO111MODULE on
 RUN set -eux && \
   go build -o bitcoin-system-trade-backend ./main.go
 
-FROM alpine:3.11
+FROM alpine:3.13
 
 WORKDIR /app
 

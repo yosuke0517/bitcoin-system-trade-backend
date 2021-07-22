@@ -90,10 +90,6 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	pnl := 0.0
 	size = 0.0
 	atr, _ := service.Atr(30)
-	if ai.BackTest {
-		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
-		return "", couldBuy, orderPrice
-	}
 	// トレード時間の妥当性チェック
 	if ai.StartTrade.After(candle.Time) {
 		return
@@ -105,73 +101,79 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	if !ai.SignalEvents.CanBuy(candle.Time, longReOpen) {
 		return
 	}
-	availableCurrency := ai.GetAvailableBalance()
-	// 使用して良い金額は証拠金に3.5をかけた数とする
-	useCurrency := availableCurrency * ai.UsePercent
-	ticker, err := ai.API.GetTicker(ai.ProductCode)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if ticker == nil {
-		return
-	}
-	// 証拠金の4倍でどれだけ買えるか調査
-	size = 1.0 / (ticker.BestAsk / useCurrency)
-	size = ai.AdjustSize(size)
 
-	params := map[string]string{
-		"product_code": "FX_BTC_JPY",
-	}
-	positionRes, _ := ai.API.GetPositions(params)
-	fmt.Println("positionRessssssssssss")
-	fmt.Println(positionRes)
-	// positionResの中身
-	// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
-	if len(positionRes) > 0 {
-		// positionResがあった場合、sizeを初期化（上記で新規購入のsizeを出しているので決済のsizeで上書きする）
-		size = 0.0
-		for _, position := range positionRes {
-			size += position.Size
-			pnl += position.Pnl
+	if !ai.BackTest {
+		availableCurrency := ai.GetAvailableBalance()
+		// 使用して良い金額は証拠金に3.5をかけた数とする
+		useCurrency := availableCurrency * ai.UsePercent
+		ticker, err := ai.API.GetTicker(ai.ProductCode)
+		if err != nil {
+			log.Println(err)
+			return
 		}
-		size = math.Round(size*10000) / 10000
+		if ticker == nil {
+			return
+		}
+		// 証拠金の4倍でどれだけ買えるか調査
+		size = 1.0 / (ticker.BestAsk / useCurrency)
+		size = ai.AdjustSize(size)
+
+		params := map[string]string{
+			"product_code": "FX_BTC_JPY",
+		}
+		positionRes, _ := ai.API.GetPositions(params)
+		fmt.Println("positionRessssssssssss")
+		fmt.Println(positionRes)
+		// positionResの中身
+		// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
+		if len(positionRes) > 0 {
+			// positionResがあった場合、sizeを初期化（上記で新規購入のsizeを出しているので決済のsizeで上書きする）
+			size = 0.0
+			for _, position := range positionRes {
+				size += position.Size
+				pnl += position.Pnl
+			}
+			size = math.Round(size*10000) / 10000
+		}
+		if math.IsNaN(size) {
+			log.Println("sizeの計算が出来ませんでした。BUYを中止します。")
+			return
+		}
+		order := &bitflyer.Order{
+			ProductCode:     ai.ProductCode,
+			ChildOrderType:  "MARKET",
+			Side:            "BUY",
+			Size:            size,
+			MinuteToExpires: ai.MinuteToExpires,
+			TimeInForce:     "GTC",
+		}
+		log.Printf("status=order candle=%+v order=%+v", candle, order)
+		resp, err := ai.API.SendOrder(order)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		childOrderAcceptanceID = resp.ChildOrderAcceptanceID
+		if resp.ChildOrderAcceptanceID == "" {
+			// Insufficient fund
+			// 資金が足りなくて買えない時もここに入ってくる
+			log.Printf("order=%+v status=no_id（不正なsize指定がされている可能性があります。）", order)
+			return
+		}
+		isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
+		// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
+		if config.Config.Continue && len(positionRes) > 0 && !isShortProfit {
+			longReOpen = true
+		}
+		// StopLimit後はreOpenしない
+		if (config.Config.Continue && isStopLimit) || !config.Config.Continue {
+			longReOpen = false
+		}
+		return childOrderAcceptanceID, isOrderCompleted, orderPrice
+	} else {
+		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
+		return "", couldBuy, candle.Close
 	}
-	if math.IsNaN(size) {
-		log.Println("sizeの計算が出来ませんでした。BUYを中止します。")
-		return
-	}
-	order := &bitflyer.Order{
-		ProductCode:     ai.ProductCode,
-		ChildOrderType:  "MARKET",
-		Side:            "BUY",
-		Size:            size,
-		MinuteToExpires: ai.MinuteToExpires,
-		TimeInForce:     "GTC",
-	}
-	log.Printf("status=order candle=%+v order=%+v", candle, order)
-	resp, err := ai.API.SendOrder(order)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
-	if resp.ChildOrderAcceptanceID == "" {
-		// Insufficient fund
-		// 資金が足りなくて買えない時もここに入ってくる
-		log.Printf("order=%+v status=no_id（不正なsize指定がされている可能性があります。）", order)
-		return
-	}
-	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
-	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
-	if config.Config.Continue && len(positionRes) > 0 && !isShortProfit {
-		longReOpen = true
-	}
-	// StopLimit後はreOpenしない
-	if (config.Config.Continue && isStopLimit) || !config.Config.Continue {
-		longReOpen = false
-	}
-	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
 /** bitflyer用のSELL */
@@ -180,10 +182,6 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	pnl := 0.0
 	size = 0.0
 	atr, _ := service.Atr(30)
-	if ai.BackTest {
-		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
-		return "", couldSell, orderPrice
-	}
 
 	if ai.StartTrade.After(candle.Time) {
 		return
@@ -195,72 +193,78 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	if !ai.SignalEvents.CanSell(candle.Time, shortReOpen) {
 		return
 	}
-	availableCurrency := ai.GetAvailableBalance()
-	// 使用して良い金額は証拠金に3.5をかけた数とする
-	useCurrency := availableCurrency * ai.UsePercent
-	ticker, err := ai.API.GetTicker(ai.ProductCode)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if ticker == nil {
-		return
-	}
-	// 証拠金の4倍でどれだけ買えるか調査
-	size = 1.0 / (ticker.BestAsk / useCurrency)
-	size = ai.AdjustSize(size)
 
-	params := map[string]string{
-		"product_code": "FX_BTC_JPY",
-	}
-	positionRes, _ := ai.API.GetPositions(params)
-	fmt.Println("positionRessssssss")
-	fmt.Println(positionRes)
-	// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
-	// pnl: 利益
-	if len(positionRes) > 0 {
-		// positionResがあった場合、sizeを初期化（上記で新規購入のsizeを出しているので決済のsizeで上書きする）
-		size = 0.0
-		for _, position := range positionRes {
-			size += position.Size
-			pnl += position.Pnl
+	if !ai.BackTest {
+		availableCurrency := ai.GetAvailableBalance()
+		// 使用して良い金額は証拠金に3.5をかけた数とする
+		useCurrency := availableCurrency * ai.UsePercent
+		ticker, err := ai.API.GetTicker(ai.ProductCode)
+		if err != nil {
+			log.Println(err)
+			return
 		}
-		size = math.Round(size*10000) / 10000
+		if ticker == nil {
+			return
+		}
+		// 証拠金の4倍でどれだけ買えるか調査
+		size = 1.0 / (ticker.BestAsk / useCurrency)
+		size = ai.AdjustSize(size)
+
+		params := map[string]string{
+			"product_code": "FX_BTC_JPY",
+		}
+		positionRes, _ := ai.API.GetPositions(params)
+		fmt.Println("positionRessssssss")
+		fmt.Println(positionRes)
+		// (注文単位で配列で返却される)positionResが1以上の場合、注文を決済するのでSizeを格納する
+		// pnl: 利益
+		if len(positionRes) > 0 {
+			// positionResがあった場合、sizeを初期化（上記で新規購入のsizeを出しているので決済のsizeで上書きする）
+			size = 0.0
+			for _, position := range positionRes {
+				size += position.Size
+				pnl += position.Pnl
+			}
+			size = math.Round(size*10000) / 10000
+		}
+		if math.IsNaN(size) {
+			log.Println("sizeの計算が出来ませんでした。SELLを中止します。")
+			return
+		}
+		order := &bitflyer.Order{
+			ProductCode:     ai.ProductCode,
+			ChildOrderType:  "MARKET",
+			Side:            "SELL",
+			Size:            size,
+			MinuteToExpires: ai.MinuteToExpires,
+			TimeInForce:     "GTC",
+		}
+		log.Printf("status=sell candle=%+v order=%+v", candle, order)
+		resp, err := ai.API.SendOrder(order)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if resp.ChildOrderAcceptanceID == "" {
+			// Insufficient funds
+			log.Printf("order=%+v status=no_id（不正なsize指定がされている可能性があります。）", order)
+			return
+		}
+		childOrderAcceptanceID = resp.ChildOrderAcceptanceID
+		isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
+		// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない。ADD:ロングにて利益確定済みじゃないとき（isLongProfit）
+		if config.Config.Continue && len(positionRes) > 0 && !isLongProfit {
+			shortReOpen = true
+		}
+		// StopLimit後はreOpenしない
+		if (config.Config.Continue && isStopLimit) || !config.Config.Continue {
+			shortReOpen = false
+		}
+		return childOrderAcceptanceID, isOrderCompleted, orderPrice
+	} else {
+		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
+		return "", couldSell, orderPrice
 	}
-	if math.IsNaN(size) {
-		log.Println("sizeの計算が出来ませんでした。SELLを中止します。")
-		return
-	}
-	order := &bitflyer.Order{
-		ProductCode:     ai.ProductCode,
-		ChildOrderType:  "MARKET",
-		Side:            "SELL",
-		Size:            size,
-		MinuteToExpires: ai.MinuteToExpires,
-		TimeInForce:     "GTC",
-	}
-	log.Printf("status=sell candle=%+v order=%+v", candle, order)
-	resp, err := ai.API.SendOrder(order)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if resp.ChildOrderAcceptanceID == "" {
-		// Insufficient funds
-		log.Printf("order=%+v status=no_id（不正なsize指定がされている可能性があります。）", order)
-		return
-	}
-	childOrderAcceptanceID = resp.ChildOrderAcceptanceID
-	isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
-	// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない。ADD:ロングにて利益確定済みじゃないとき（isLongProfit）
-	if config.Config.Continue && len(positionRes) > 0 && !isLongProfit {
-		shortReOpen = true
-	}
-	// StopLimit後はreOpenしない
-	if (config.Config.Continue && isStopLimit) || !config.Config.Continue {
-		shortReOpen = false
-	}
-	return childOrderAcceptanceID, isOrderCompleted, orderPrice
 }
 
 var profit float64    // オープン時に設定する1取引ごとの利益

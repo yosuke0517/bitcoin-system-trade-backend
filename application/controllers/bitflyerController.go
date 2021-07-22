@@ -17,7 +17,7 @@ var isTruncate bool
 var isProduction, _ = strconv.ParseBool(os.Getenv("PRODUCTION"))
 
 func StreamIngestionData() {
-	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["15m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
+	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["5m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
 
 	var tickerChannl = make(chan bitflyer.Ticker)
 	bitflyerClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
@@ -65,7 +65,7 @@ func StreamIngestionData() {
 				}
 			} else {
 				if (time.Now().Hour() != 19 && time.Now().Second()%20 == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second()%20 == 0) {
-					ai.Trade(tradeTicker)
+					//ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 19 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
 					// Truncateは一旦なし

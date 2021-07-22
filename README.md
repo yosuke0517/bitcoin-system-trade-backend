@@ -82,6 +82,7 @@ echo "LANG=ja_JP.UTF-8" > /etc/sysconfig/i18n
   - amazon-linux-extras list | grep golang
 - インストールする
   - sudo amazon-linux-extras install golang1.11
+
 - gopathの設定
 
 ```.bashrc
@@ -90,14 +91,18 @@ export GOPATH=$HOME/go
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 
 ```
+
 - 保存してから読み込み
   - source ~/.bashrc
   
+### ec2にmysqlを入れる
+- https://qiita.com/himatani/items/e1e650992dbc12b8a9b3
+
 - モジュールのインストール
   - go get
   
 - sql-migrateのインストール
-  - プロジェクトの階層にて`go get -u github.com/rubenv/sql-migrate/sql-migrate`
+  - プロジェクトの階層にて`go get -u github.com/rubenv/sql-migrate/sql-migrate`  
   
 - pathの設定
 ```.bash_profile
@@ -105,12 +110,25 @@ PATH=$PATH:$HOME/.local/bin:$HOME/bin
 export PATH="$HOME/go/bin:$PATH"       ←これ追加
 export PATH
 ```
+
+- 保存してから読み込み
+  - source ~/.bashrc
+  
 # rds
 - サブネットグループの作成
   - プライベートサブネットをマルチA-Zで選択
   
 - パラメータグループの作成
   - max_prepared_stmt_count：1048576
+  
+- webサーバから接続できるようになったらデータベースを作る
+
+```
+## データ作成
+create database simple_blog;
+
+use simple_blog;
+```  
   
 # バックグラウンドでの実行と停止
 - go run main.go &

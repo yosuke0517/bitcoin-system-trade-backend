@@ -4,7 +4,6 @@ services:
   go:
     build:
       dockerfile: Dockerfile.dev
-      # dockerfile: Dockerfile
       context: .
       target: build
     volumes:

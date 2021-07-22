@@ -29,10 +29,9 @@ func ApiCandleHandler() http.HandlerFunc {
 		duration := r.URL.Query().Get("duration")
 		if duration == "" {
 			// デフォルトは分とする
-			duration = "15m"
+			duration = "5m"
 		}
 		durationTime := config.Config.Durations[duration]
-
 		df, _ := service.GetAllCandle(productCode, durationTime, limit)
 
 		// 単純移動平均線
