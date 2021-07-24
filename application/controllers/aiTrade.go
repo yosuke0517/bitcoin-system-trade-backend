@@ -278,9 +278,9 @@ var isShortProfit bool
 var size float64
 var sellOpen bool
 var buyOpen bool
-var isNoPosition bool        // 取引中じゃない状態
-var isCandleOpportunity bool // キャンドルでの取引機会（Profit以外を指す）
-var isStopLimit bool         // 損切りを行った後にreOpenさせないためのフラグ
+var isNoPosition bool // 取引中じゃない状態
+//var isCandleOpportunity bool // キャンドルでの取引機会（Profit以外を指す）
+var isStopLimit bool // 損切りを行った後にreOpenさせないためのフラグ
 
 //var count int
 
@@ -297,16 +297,16 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ15分00秒じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
 		return
 	}
-	// 15分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
-	if time.Now().Minute()%5 == 0 && time.Now().Second() < 5 {
-		isCandleOpportunity = true
-		log.Println("isCandleOpportunityをtrueにします")
-	}
-	// 15分00秒じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
-	if time.Now().Minute()%5 != 0 || (time.Now().Minute()%5 == 0 && time.Now().Second() > 5) {
-		isCandleOpportunity = false
-		log.Println("isCandleOpportunityをfalseにします")
-	}
+	//// 15分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
+	//if time.Now().Minute()%5 == 0 && time.Now().Second() < 5 {
+	//	isCandleOpportunity = true
+	//	log.Println("isCandleOpportunityをtrueにします")
+	//}
+	//// 15分00秒じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
+	//if time.Now().Minute()%5 != 0 || (time.Now().Minute()%5 == 0 && time.Now().Second() > 5) {
+	//	isCandleOpportunity = false
+	//	log.Println("isCandleOpportunityをfalseにします")
+	//}
 	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
 	// ボラティリティが低い時はトレードしない
@@ -396,7 +396,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
-		if (isCandleOpportunity || (shortReOpen || longReOpen)) && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
+		if (shortReOpen || longReOpen) && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス with MACD
 			// buyOpenのオープン
 			//log.Printf("MACDのロング条件??: %s\n", strconv.FormatBool((outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]))
@@ -489,11 +489,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
 		log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-		log.Printf("isCandleOpportunity:%s\n", strconv.FormatBool(isCandleOpportunity))
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
-		if isNoPosition && bbRate < 0.98 && (isCandleOpportunity || (shortReOpen || longReOpen)) {
+		if isNoPosition && bbRate < 0.98 && (shortReOpen || longReOpen) {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
