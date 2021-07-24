@@ -190,7 +190,6 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 	atrRate := 0.0
 	canBuy := s.CanBuy(time, reOpen)
 	if !canBuy {
-		log.Printf("canBuy: false")
 		return false
 	}
 	if orderPrice > 0 {
@@ -223,7 +222,6 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 	atrRate := 0.0
 	canSell := s.CanSell(time, reOpen)
 	if !canSell {
-		log.Printf("canSell: false")
 		return false
 	}
 	if orderPrice > 0 {
