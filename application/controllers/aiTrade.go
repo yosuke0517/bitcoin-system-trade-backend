@@ -489,6 +489,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
 		log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+		if bbRate < 0.98 {
+			log.Println("bbRateが高いので取引しません")
+			return
+		}
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
