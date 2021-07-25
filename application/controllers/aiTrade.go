@@ -314,7 +314,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	if atr > 0 && eventLength%2 == 0 {
 		atrRate = (float64(atr) / price) * 100
 		if atrRate < 0.10 {
-			fmt.Printf("低ボラティリティのため取引しません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
+			log.Printf("低ボラティリティのため取引しません。（atrRate:%s\n", strconv.FormatFloat(atrRate, 'f', -1, 64))
 			atrRate = 0.0
 			return
 		} else {
@@ -396,7 +396,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		// 有効なインディケータの数
 		buyPoint, sellPoint := 0, 0
 		// ゴールデンクロス・デッドクロスが計算できる条件
-		if (shortReOpen || longReOpen) && params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
+		if params.EmaEnable && params.EmaPeriod1 <= i && params.EmaPeriod2 <= i {
 			// ゴールデンクロス with MACD
 			// buyOpenのオープン
 			//log.Printf("MACDのロング条件??: %s\n", strconv.FormatBool((outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]))
@@ -492,7 +492,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
-		if isNoPosition && bbRate < 0.98 && (shortReOpen || longReOpen) {
+		if isNoPosition && bbRate < 0.98 || (shortReOpen || longReOpen) {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
@@ -596,6 +596,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				}
 			}
 		}
+		// クローズ
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
 		// sellOpenのクローズ（buyPointにてクローズする場合は15分単位のみ）
 		//if sellOpen == true && (buyPoint > 0 || price <= profit || price >= stopLimit) {
