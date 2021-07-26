@@ -47,8 +47,7 @@ var tradeDuration int
 
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
-	tradeDurationTmp := os.Getenv("TRADE_DURATION")
-	tradeDuration, _ = strconv.Atoi(tradeDurationTmp)
+	tradeDuration, _ = strconv.Atoi(strings.TrimSuffix(os.Getenv("TRADE_DURATION"), "m"))
 	var signalEvents *model.SignalEvents
 	signalEvents = model.GetSignalEventsByCount(1)
 	codes := strings.Split(productCode, "_")
