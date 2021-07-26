@@ -47,7 +47,8 @@ var tradeDuration int
 
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
 	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
-	tradeDuration, _ = strconv.Atoi(os.Getenv("TRADE_DURATION"))
+	tradeDurationTmp := os.Getenv("TRADE_DURATION")
+	tradeDuration, _ = strconv.Atoi(tradeDurationTmp)
 	var signalEvents *model.SignalEvents
 	signalEvents = model.GetSignalEventsByCount(1)
 	codes := strings.Split(productCode, "_")
@@ -293,7 +294,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	} else {
 		isNoPosition = false
 	}
-	if !shortReOpen && !longReOpen && time.Now().Minute()%5 != 0 && time.Now().Second() != 0 && isNoPosition {
+	if !shortReOpen && !longReOpen && time.Now().Minute()%tradeDuration != 0 && time.Now().Second() != 0 && isNoPosition {
 		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ15分00秒じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
 		return
 	}
@@ -605,8 +606,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			log.Printf("クローズsellOpen?:%s\n", strconv.FormatBool(sellOpen))
 			log.Printf("クローズショート？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
 			log.Printf("クローズショート？？price <= profit:%s\n", strconv.FormatBool(price <= profit))
-			log.Printf("クローズショート？？総合判定:%s\n", strconv.FormatBool((buyPoint > 0 && time.Now().Minute()%5 == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit)))
-			if (buyPoint > 0 && time.Now().Minute()%5 == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit) {
+			log.Printf("クローズショート？？総合判定:%s\n", strconv.FormatBool((buyPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit)))
+			if (buyPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit) {
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					log.Printf("ショート：isOrderCompleted == false")
@@ -636,8 +637,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			log.Printf("クローズbuyOpen?:%s\n", strconv.FormatBool(buyOpen))
 			log.Printf("クローズロングbuyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint < sellPoint))
 			log.Printf("クローズロングprice >= profit:%s\n", strconv.FormatBool(price >= profit))
-			log.Printf("クローズロング最終判定:%s\n", strconv.FormatBool((sellPoint > 0 && time.Now().Minute()%5 == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit)))
-			if (sellPoint > 0 && time.Now().Minute()%5 == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit) {
+			log.Printf("クローズロング最終判定:%s\n", strconv.FormatBool((sellPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit)))
+			if (sellPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit) {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					log.Printf("ロング：isOrderCompleted == false")
