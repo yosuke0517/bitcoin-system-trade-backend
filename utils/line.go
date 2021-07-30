@@ -1,10 +1,10 @@
 package utils
 
 import (
+	"app/config"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -15,11 +15,9 @@ type Response struct {
 
 // 引数で受け取った文字列をLINE通知する
 func SendLine(result string) (*http.Response, error) {
-	accessToken := os.Getenv("LINEnotyfyToken")
 	msg := result
 
-	URL := os.Getenv("LINEpostURL")
-	u, err := url.ParseRequestURI(URL)
+	u, err := url.ParseRequestURI(config.Config.LinePostUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +35,7 @@ func SendLine(result string) (*http.Response, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Authorization", "Bearer "+config.Config.LineNotifyToken)
 
 	res, err := c.Do(req)
 	if err != nil {

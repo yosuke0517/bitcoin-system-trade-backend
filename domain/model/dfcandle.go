@@ -4,9 +4,7 @@ import (
 	"app/config"
 	"app/domain/tradingalgo"
 	"github.com/markcheno/go-talib"
-	"os"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -548,11 +546,8 @@ func (df *DataFrameCandle) OptimizeParams(reOpen bool) *TradeParams {
 	}
 
 	// 環境変数から使用するインディケータを選出する
-	envNumRanking := os.Getenv("NUM_RANKING")
-	numRanking, _ := strconv.Atoi(envNumRanking)
-
 	for i, ranking := range rankings {
-		if i >= numRanking {
+		if i >= config.Config.NumRanking {
 			break
 		}
 		if ranking.Performance > 0 {

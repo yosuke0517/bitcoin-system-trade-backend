@@ -3,8 +3,7 @@ package domain
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
+	"gopkg.in/ini.v1"
 	"log"
 	"os"
 )
@@ -12,17 +11,18 @@ import (
 var DB *sql.DB
 
 func init() {
-	envErr := godotenv.Load()
-	if envErr != nil {
-		logrus.Fatal("Error loading .env")
+	cfg, err := ini.Load("config.ini")
+	if err != nil {
+		log.Printf("Failed to read file: %v", err)
+		// エラーコード１で終了
+		os.Exit(1)
 	}
-	var err error
 	/**
 	  Memo:"DB_HOST"はdockerの場合データベースコンテナ名
 	*/
-	DB, err = sql.Open("mysql", os.Getenv("DB_USERNAME")+":"+os.Getenv("DB_PASSWORD")+
-		"@tcp("+os.Getenv("DB_HOST")+":"+os.Getenv("DB_PORT")+")/"+
-		os.Getenv("DB_DATABASE")+
+	DB, err = sql.Open("mysql", cfg.Section("db").Key("user_name").String()+":"+cfg.Section("db").Key("password").String()+
+		"@tcp("+cfg.Section("db").Key("host").String()+":"+cfg.Section("db").Key("port").String()+")/"+
+		cfg.Section("db").Key("db_name").String()+
 		"?charset=utf8mb4&parseTime=true")
 
 	if err != nil {

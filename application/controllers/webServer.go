@@ -6,7 +6,6 @@ import (
 	"app/domain/model"
 	"app/domain/service"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 )
@@ -17,7 +16,7 @@ func ApiCandleHandler() http.HandlerFunc {
 		productCode := r.URL.Query().Get("product_code")
 		// パラメータで指定がない場合は設定ファイルのものを使う
 		if productCode == "" {
-			productCode = os.Getenv("PRODUCT_CODE")
+			productCode = config.Config.ProductCode
 		}
 		strLimit := r.URL.Query().Get("limit")
 		limit, err := strconv.Atoi(strLimit)
@@ -29,7 +28,7 @@ func ApiCandleHandler() http.HandlerFunc {
 		duration := r.URL.Query().Get("duration")
 		if duration == "" {
 			// デフォルトは分とする
-			duration = "5m"
+			duration = config.Config.TradeDuration
 		}
 		durationTime := config.Config.Durations[duration]
 		df, _ := service.GetAllCandle(productCode, durationTime, limit)
@@ -239,7 +238,7 @@ func GetLatestCandle() http.HandlerFunc {
 		productCode := r.URL.Query().Get("product_code")
 		// パラメータで指定がない場合は設定ファイルのものを使う
 		if productCode == "" {
-			productCode = os.Getenv("PRODUCT_CODE")
+			productCode = config.Config.ProductCode
 		}
 		currentCandle := service.SelectOne(productCode, time.Minute, time.Now().Truncate(time.Minute))
 		if currentCandle == nil {
@@ -255,7 +254,7 @@ func GetEvents() http.HandlerFunc {
 		productCode := r.URL.Query().Get("product_code")
 		// パラメータで指定がない場合は設定ファイルのものを使う
 		if productCode == "" {
-			productCode = os.Getenv("PRODUCT_CODE")
+			productCode = config.Config.ProductCode
 		}
 		events := model.GetAllSignalEvents()
 		if events == nil {

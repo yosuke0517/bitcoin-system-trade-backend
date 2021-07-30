@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"app/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -22,7 +23,7 @@ func LoggingSettings(logFile string) {
 }
 
 func UploadLogFile() {
-	creds := credentials.NewStaticCredentials(os.Getenv("AWS_ACCESS_KEY"), os.Getenv("AWS_SECRET_KEY"), "")
+	creds := credentials.NewStaticCredentials(config.Config.AwsAccessKey, config.Config.AwsSecretKey, "")
 	// sessionの作成
 	sess := session.Must(session.NewSession(&aws.Config{
 		Credentials: creds,
@@ -39,13 +40,13 @@ func UploadLogFile() {
 
 	day := time.Now()
 	fileNameSuffix := day.Format("2006-01-02")
-	bucketName := os.Getenv("BACKET_NAME")
+
 	objectKey := fileNameSuffix
 
 	// Uploaderを作成し、ローカルファイルをアップロード
 	uploader := s3manager.NewUploader(sess)
 	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(bucketName),
+		Bucket: aws.String(config.Config.BacketName),
 		Key:    aws.String(objectKey),
 		Body:   file,
 	})
@@ -56,6 +57,6 @@ func UploadLogFile() {
 	if err != nil {
 		log.Fatal(removeErr)
 	}
-	LoggingSettings(os.Getenv("LOG_FILE"))
+	LoggingSettings(config.Config.LogFile)
 	log.Println("done")
 }

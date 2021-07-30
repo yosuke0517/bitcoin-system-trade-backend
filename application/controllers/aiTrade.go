@@ -9,7 +9,6 @@ import (
 	"github.com/markcheno/go-talib"
 	"log"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -46,8 +45,8 @@ var shortReOpen bool
 var tradeDuration int
 
 func NewAI(productCode string, duration time.Duration, pastPeriod int, UsePercent, stopLimitPercent float64, backTest bool) *AI {
-	apiClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
-	tradeDuration, _ = strconv.Atoi(strings.TrimSuffix(os.Getenv("TRADE_DURATION"), "m"))
+	apiClient := bitflyer.New(config.Config.ApiKey, config.Config.ApiSecret)
+	tradeDuration, _ = strconv.Atoi(strings.TrimSuffix(config.Config.TradeDuration, "m"))
 	var signalEvents *model.SignalEvents
 	signalEvents = model.GetSignalEventsByCount(1)
 	codes := strings.Split(productCode, "_")
@@ -78,7 +77,6 @@ func (ai *AI) UpdateOptimizeParams(isContinue, reOpen bool) {
 	// インディケータが1つも使えない場合は再起呼び出し
 	if ai.OptimizedTradeParams == nil && isContinue && !ai.BackTest {
 		log.Print("status_no_params")
-		time.Sleep(10 * ai.Duration)
 		reOpen = false
 		if longReOpen || shortReOpen {
 			reOpen = true
@@ -488,12 +486,13 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//if bbRate > 0.99 {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
+		log.Printf("オープン可能かどうか：%s\n", strconv.FormatBool(isNoPosition && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen)))
+		log.Println("--------------------------以下、詳細です--------------------------")
 		log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
-		log.Println(isNoPosition && bbRate < 0.98 || (shortReOpen || longReOpen))
-		if isNoPosition && bbRate < 0.98 || (shortReOpen || longReOpen) {
+		if isNoPosition && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen) {
 			// 1つでも買いのインディケータがあれば買い
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
