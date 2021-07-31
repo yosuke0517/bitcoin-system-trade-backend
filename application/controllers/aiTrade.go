@@ -621,7 +621,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					log.Println("損切り")
 					isStopLimit = true
 				}
-				utils.SendLine("ショートのクローズ（buy): " + strconv.FormatFloat(price, 'f', -1, 64) + "profit: " + strconv.FormatFloat(profit, 'f', -1, 64))
+				utils.SendLine("ショートのクローズ（buy): " + strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
 				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
@@ -653,7 +653,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					log.Println("損切り")
 					isStopLimit = true
 				}
-				utils.SendLine("オープンのクローズ（sell): " + strconv.FormatFloat(price, 'f', -1, 64) + "profit: " + strconv.FormatFloat(profit, 'f', -1, 64))
+				utils.SendLine("ロングのクローズ（sell): " + strconv.FormatFloat(price, 'f', -1, 64))
 				log.Println("buyOpenのクローズ")
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))

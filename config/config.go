@@ -73,7 +73,7 @@ func init() {
 		Continue:         cfg.Section("gotrade").Key("continue").MustBool(),
 		OpenableBbRate:   cfg.Section("gotrade").Key("openable_bb_rate").MustFloat64(),
 		AwsAccessKey:     cfg.Section("aws").Key("access_key").String(),
-		AwsSecretKey:     cfg.Section("aws").Key("sectet_key").String(),
+		AwsSecretKey:     cfg.Section("aws").Key("secret_key").String(),
 		IsProduction:     cfg.Section("gotrade").Key("production").MustBool(),
 		CandleLengthMin:  cfg.Section("gotrade").Key("candle_length_min").MustInt(),
 		LineNotifyToken:  cfg.Section("line").Key("notify_token").String(),
