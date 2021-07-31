@@ -3,11 +3,9 @@ package model
 import (
 	"app/config"
 	"app/domain"
-	"app/utils"
 	"encoding/json"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -210,7 +208,6 @@ func (s *SignalEvents) Buy(ProductCode string, time time.Time, price, size float
 	// バックテスト等でセーブしたくない場合があるためBackTestフラグが必要
 	if save {
 		log.Printf("イベントを保存します：%s", signalEvent.Side)
-		utils.SendLine("buy: " + strconv.FormatFloat(price, 'f', -1, 64))
 		signalEvent.Save()
 	}
 	s.Signals = append(s.Signals, signalEvent)
@@ -243,7 +240,6 @@ func (s *SignalEvents) Sell(productCode string, time time.Time, price, size floa
 	// バックテスト等でセーブしたくない場合があるためBackTestフラグが必要
 	if save {
 		log.Printf("イベントを保存します：%s", signalEvent.Side)
-		utils.SendLine("sell: " + strconv.FormatFloat(price, 'f', -1, 64))
 		signalEvent.Save()
 	}
 	s.Signals = append(s.Signals, signalEvent)

@@ -5,6 +5,7 @@ import (
 	"app/config"
 	"app/domain/model"
 	"app/domain/service"
+	"app/utils"
 	"fmt"
 	"github.com/markcheno/go-talib"
 	"log"
@@ -538,6 +539,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("sellOpenのオープン")
+				utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				sellOpen = true
 				if shortReOpen {
 					log.Println("shortReOpen成功")
@@ -589,6 +591,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("buyOpenのオープン")
+				utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				buyOpen = true
 				if longReOpen {
 					log.Println("longReOpen成功")
@@ -618,6 +621,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					log.Println("損切り")
 					isStopLimit = true
 				}
+				utils.SendLine("ショートのクローズ（buy): " + strconv.FormatFloat(price, 'f', -1, 64) + "profit: " + strconv.FormatFloat(profit, 'f', -1, 64))
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
 				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
@@ -649,6 +653,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					log.Println("損切り")
 					isStopLimit = true
 				}
+				utils.SendLine("オープンのクローズ（sell): " + strconv.FormatFloat(price, 'f', -1, 64) + "profit: " + strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("buyOpenのクローズ")
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
