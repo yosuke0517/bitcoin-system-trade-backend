@@ -500,6 +500,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			if sellPoint > buyPoint || shortReOpen {
 				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
+					utils.SendLine("オープンショート：注文が保存できませんでした。アプリを終了します。")
+					log.Fatal("オープンショート：注文が保存できませんでした。アプリを終了します。")
 					continue
 				}
 				// StopLimit後のオープンの場合はisStopLimitを初期化する
@@ -539,7 +541,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("sellOpenのオープン")
-				utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64))
+				utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "stopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "bbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
 				sellOpen = true
 				if shortReOpen {
 					log.Println("shortReOpen成功")
@@ -552,6 +554,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			if buyPoint > sellPoint || longReOpen {
 				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
+					utils.SendLine("オープンロング：注文が保存できませんでした。アプリを終了します。")
+					log.Fatal("オープンロング：注文が保存できませんでした。アプリを終了します。")
 					continue
 				}
 				// StopLimit後のオープンの場合はisStopLimitを初期化する
@@ -591,7 +595,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("buyOpenのオープン")
-				utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64))
+				utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "stopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "bbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
 				buyOpen = true
 				if longReOpen {
 					log.Println("longReOpen成功")
@@ -611,7 +615,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			if buyPoint > 0 || price <= profit || price >= stopLimit {
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
-					log.Printf("ショート：isOrderCompleted == false")
+					utils.SendLine("クローズショート：注文が保存できませんでした。アプリを終了します。")
+					log.Fatal("クローズショート：注文が保存できませんでした。アプリを終了します。")
 					continue
 				}
 				if price <= profit {
@@ -643,7 +648,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			if sellPoint > 0 || price >= profit || price <= stopLimit {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
-					log.Printf("ロング：isOrderCompleted == false")
+					utils.SendLine("クローズロング：注文が保存できませんでした。アプリを終了します。")
+					log.Fatal("クローズロング：注文が保存できませんでした。アプリを終了します。")
 					continue
 				}
 				if price >= profit {
