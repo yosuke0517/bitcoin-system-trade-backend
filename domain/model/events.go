@@ -3,6 +3,7 @@ package model
 import (
 	"app/config"
 	"app/domain"
+	"app/utils"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -37,6 +38,8 @@ func (s *SignalEvent) Save() bool {
 	}
 	_, err = ins.Exec(s.Time, s.ProductCode, s.Side, s.Price, s.Size, s.Atr, s.AtrRate, s.Pnl, s.ReOpen, s.BbRate)
 	if err != nil {
+		utils.SendLine("注文が保存できませんでした。ログを確認してください。")
+		log.Printf("注文が保存できませんでした。err: %s", err)
 		// 今回は同じ時間で複数売買させない
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			log.Println(err)
