@@ -541,7 +541,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("sellOpenのオープン")
-				utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "stopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "bbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
+				utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
 				sellOpen = true
 				if shortReOpen {
 					log.Println("shortReOpen成功")
@@ -595,7 +595,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				log.Println("buyOpenのオープン")
-				utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "stopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "bbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
+				utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
 				buyOpen = true
 				if longReOpen {
 					log.Println("longReOpen成功")
