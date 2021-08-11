@@ -13,6 +13,7 @@ type ConfigList struct {
 	LogFile          string
 	ProductCode      string
 	TradeDuration    string
+	TradeSuffix      string
 	Durations        map[string]time.Duration
 	DbName           string
 	DbHost           string
@@ -47,7 +48,6 @@ func init() {
 		os.Exit(1)
 	}
 	durations := map[string]time.Duration{
-		"5m":  time.Minute * 5,
 		"15m": time.Minute * 15,
 		"30m": time.Minute * 30,
 		"1h":  time.Hour,
@@ -59,6 +59,7 @@ func init() {
 		LogFile:          cfg.Section("gotrade").Key("log_file").String(),
 		ProductCode:      cfg.Section("gotrade").Key("product_code").String(),
 		TradeDuration:    cfg.Section("gotrade").Key("trade_duration").String(),
+		TradeSuffix:      cfg.Section("gotrade").Key("trade_suffix").String(),
 		Durations:        durations,
 		DbName:           cfg.Section("db").Key("db_name").String(),
 		DbHost:           cfg.Section("db").Key("host").String(),
