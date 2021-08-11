@@ -1,11 +1,12 @@
 package model
 
 import (
+	"app/config"
 	"app/domain"
+	"app/utils"
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 )
@@ -37,6 +38,8 @@ func (s *SignalEvent) Save() bool {
 	}
 	_, err = ins.Exec(s.Time, s.ProductCode, s.Side, s.Price, s.Size, s.Atr, s.AtrRate, s.Pnl, s.ReOpen, s.BbRate)
 	if err != nil {
+		utils.SendLine("注文が保存できませんでした。ログを確認してください。")
+		log.Printf("注文が保存できませんでした。err: %s", err)
 		// 今回は同じ時間で複数売買させない
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			log.Println(err)
@@ -59,7 +62,7 @@ func NewSignalEvents() *SignalEvents {
 func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 	tableName := tableNameSignalEvents
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size, atr, atr_rate, pnl, re_open, bb_rate FROM %s WHERE product_code = ? ORDER BY time DESC LIMIT ? ) as events ORDER BY time ASC;`, tableName)
-	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"), loadEvents)
+	rows, err := domain.DB.Query(cmd, config.Config.ProductCode, loadEvents)
 	if err != nil {
 		log.Println(err)
 		return nil
@@ -84,7 +87,7 @@ func GetSignalEventsByCount(loadEvents int) *SignalEvents {
 func GetAllSignalEvents() *SignalEvents {
 	tableName := tableNameSignalEvents
 	cmd := fmt.Sprintf(`SELECT * FROM (SELECT time, product_code, side, price, size, atr, atr_rate, pnl, re_open, bb_rate FROM %s WHERE product_code = ? ORDER BY time DESC) as events ORDER BY time ASC;`, tableName)
-	rows, err := domain.DB.Query(cmd, os.Getenv("PRODUCT_CODE"))
+	rows, err := domain.DB.Query(cmd, config.Config.ProductCode)
 	if err != nil {
 		log.Println(err)
 		return nil

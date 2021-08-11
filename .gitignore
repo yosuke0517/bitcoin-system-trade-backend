@@ -16,6 +16,9 @@ config.ini
 # log
 debug.log
 
+# develop info
+.other
+
 # env
 .env
 
@@ -25,4 +28,5 @@ dbconfig.yml
 # local dbdata
 /dbdata
 
-ignore-info.md
+# other info
+otherignore

@@ -4,9 +4,7 @@ import (
 	"app/config"
 	"app/domain/tradingalgo"
 	"github.com/markcheno/go-talib"
-	"os"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -277,22 +275,23 @@ func (df *DataFrameCandle) BackTestEma(period1, period2 int, reOpen bool) *Signa
 func (df *DataFrameCandle) OptimizeEma(reOpen bool) (performance float64, bestPeriod1 int, bestPeriod2 int) {
 	bestPeriod1 = 7
 	bestPeriod2 = 14
+	performance = 1
 	// TODO 数を伸ばしたりして要調整 No.129
-	for period1 := 5; period1 < 30; period1++ {
-		for period2 := 12; period2 < 50; period2++ {
-			signalEvents := df.BackTestEma(period1, period2, reOpen)
-			if signalEvents == nil {
-				continue
-			}
-			// それぞれの利益を出して1番良い成績を残す日数を探す
-			profit := signalEvents.Profit()
-			if performance < profit {
-				performance = profit
-				bestPeriod1 = period1
-				bestPeriod2 = period2
-			}
-		}
-	}
+	//for period1 := 5; period1 < 30; period1++ {
+	//	for period2 := 12; period2 < 50; period2++ {
+	//		signalEvents := df.BackTestEma(period1, period2, reOpen)
+	//		if signalEvents == nil {
+	//			continue
+	//		}
+	//		// それぞれの利益を出して1番良い成績を残す日数を探す
+	//		profit := signalEvents.Profit()
+	//		if performance < profit {
+	//			performance = profit
+	//			bestPeriod1 = period1
+	//			bestPeriod2 = period2
+	//		}
+	//	}
+	//}
 	return performance, bestPeriod1, bestPeriod2
 }
 
@@ -414,27 +413,27 @@ func (df *DataFrameCandle) BackTestMacd(macdFastPeriod, macdSlowPeriod, macdSign
 
 /** MACD最適化 */
 func (df *DataFrameCandle) OptimizeMacd(reOpen bool) (performance float64, bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod int) {
-	bestMacdFastPeriod = 12
+	bestMacdFastPeriod = 10
 	bestMacdSlowPeriod = 26
 	bestMacdSignalPeriod = 9
-
-	for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
-		for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
-			for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
-				signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod, reOpen)
-				if signalEvents == nil {
-					continue
-				}
-				profit := signalEvents.Profit()
-				if performance < profit {
-					performance = profit
-					bestMacdFastPeriod = fastPeriod
-					bestMacdSlowPeriod = slowPeriod
-					bestMacdSignalPeriod = signalPeriod
-				}
-			}
-		}
-	}
+	performance = 1
+	//for fastPeriod := 10; fastPeriod < 25; fastPeriod++ {
+	//	for slowPeriod := 20; slowPeriod < 33; slowPeriod++ {
+	//		for signalPeriod := 5; signalPeriod < 18; signalPeriod++ {
+	//			signalEvents := df.BackTestMacd(bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod, reOpen)
+	//			if signalEvents == nil {
+	//				continue
+	//			}
+	//			profit := signalEvents.Profit()
+	//			if performance < profit {
+	//				performance = profit
+	//				bestMacdFastPeriod = fastPeriod
+	//				bestMacdSlowPeriod = slowPeriod
+	//				bestMacdSignalPeriod = signalPeriod
+	//			}
+	//		}
+	//	}
+	//}
 	return performance, bestMacdFastPeriod, bestMacdSlowPeriod, bestMacdSignalPeriod
 }
 
@@ -547,11 +546,8 @@ func (df *DataFrameCandle) OptimizeParams(reOpen bool) *TradeParams {
 	}
 
 	// 環境変数から使用するインディケータを選出する
-	envNumRanking := os.Getenv("NUM_RANKING")
-	numRanking, _ := strconv.Atoi(envNumRanking)
-
 	for i, ranking := range rankings {
-		if i >= numRanking {
+		if i >= config.Config.NumRanking {
 			break
 		}
 		if ranking.Performance > 0 {

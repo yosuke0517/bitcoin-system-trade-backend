@@ -45,17 +45,13 @@ func (c *candleInfraStruct) TableName() string {
 // テーブルを空にする
 func Truncate() (bool, error) {
 	isTruncate := false
-	cmd1 := fmt.Sprintf("TRUNCATE %s", "FX_BTC_JPY_1h0m0s")
-	cmd2 := fmt.Sprintf("TRUNCATE %s", "FX_BTC_JPY_5m0s")
-	cmd3 := fmt.Sprintf("TRUNCATE %s", "FX_BTC_JPY_1m0s")
-	cmd4 := fmt.Sprintf("TRUNCATE %s", "FX_BTC_JPY_30s")
-	cmd5 := fmt.Sprintf("TRUNCATE %s", "FX_BTC_JPY_1s")
+	cmd1 := fmt.Sprintf(" delete from FX_BTC_JPY_1h0m0s order by time asc limit 24")
+	cmd2 := fmt.Sprintf(" delete from FX_BTC_JPY_15m0s order by time asc limit 96")
+	cmd3 := fmt.Sprintf(" delete from FX_BTC_JPY_5m0s order by time asc limit 288")
 
 	truncate1, err1 := domain.DB.Prepare(cmd1)
 	truncate2, err2 := domain.DB.Prepare(cmd2)
 	truncate3, err3 := domain.DB.Prepare(cmd3)
-	truncate4, err4 := domain.DB.Prepare(cmd4)
-	truncate5, err5 := domain.DB.Prepare(cmd5)
 	if err1 != nil {
 		log.Println(err1)
 	}
@@ -64,18 +60,10 @@ func Truncate() (bool, error) {
 	}
 	if err3 != nil {
 		log.Println(err3)
-	}
-	if err4 != nil {
-		log.Println(err4)
-	}
-	if err5 != nil {
-		log.Println(err5)
 	}
 	_, err1 = truncate1.Exec()
 	_, err2 = truncate2.Exec()
 	_, err3 = truncate3.Exec()
-	_, err4 = truncate4.Exec()
-	_, err5 = truncate5.Exec()
 	if err1 != nil {
 		log.Println(err1)
 	}
@@ -85,13 +73,7 @@ func Truncate() (bool, error) {
 	if err3 != nil {
 		log.Println(err3)
 	}
-	if err4 != nil {
-		log.Println(err4)
-	}
-	if err5 != nil {
-		log.Println(err5)
-	}
-	if err1 == nil && err2 == nil && err3 == nil && err4 == nil && err5 == nil {
+	if err1 == nil && err2 == nil && err3 == nil {
 		return true, nil
 	}
 	return isTruncate, nil

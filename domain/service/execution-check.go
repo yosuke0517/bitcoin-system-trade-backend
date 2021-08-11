@@ -2,14 +2,14 @@ package service
 
 import (
 	"app/bitflyer"
+	"app/config"
 	"fmt"
-	"os"
 )
 
 // クローズが約定しているかのチェック（建玉を保有していれば false, 保有していなければ true）
 func CloseOrderExecutionCheck() bool {
 
-	bitflyerClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
+	bitflyerClient := bitflyer.New(config.Config.ApiKey, config.Config.ApiSecret)
 	params := map[string]string{
 		"product_code": "FX_BTC_JPY",
 	}

@@ -5,7 +5,7 @@ import (
 	"app/config"
 	"app/domain/model"
 	"app/domain/service"
-	"os"
+	"app/utils"
 	"time"
 )
 
@@ -14,11 +14,11 @@ var tradeTicker bitflyer.Ticker
 var isTruncate bool
 
 func StreamIngestionData() {
-	ai := NewAI(os.Getenv("PRODUCT_CODE"), config.Config.Durations["5m"], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
+	ai := NewAI(config.Config.ProductCode, config.Config.Durations[config.Config.TradeDuration], config.Config.DataLimit, config.Config.UsePercent, config.Config.StopLimitPercent, config.Config.BackTest)
 
 	var tickerChannl = make(chan bitflyer.Ticker)
-	bitflyerClient := bitflyer.New(os.Getenv("API_KEY"), os.Getenv("API_SECRET"))
-	go bitflyerClient.GetRealTimeTicker(os.Getenv("PRODUCT_CODE"), tickerChannl)
+	bitflyerClient := bitflyer.New(config.Config.ApiKey, config.Config.ApiSecret)
+	go bitflyerClient.GetRealTimeTicker(config.Config.ProductCode, tickerChannl)
 	go func() {
 		for {
 			for ticker := range tickerChannl {
@@ -34,10 +34,46 @@ func StreamIngestionData() {
 	go func() {
 		for range time.Tick(1 * time.Second) {
 			eventLength := model.GetAllSignalEventsCount()
-			if (time.Now().Hour() != 4 && time.Now().Second() == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second() == 0) {
-				ai.Trade(tradeTicker)
+			df, _ := service.GetAllCandle(ai.ProductCode, ai.Duration, ai.PastPeriod)
+			lenCandles := len(df.Candles)
+			// キャンドル数が設定数ない場合取引しない
+			if lenCandles < config.Config.CandleLengthMin {
+				// めっっちゃログ出るからとりあえずコメントアウト
+				//fmt.Printf("キャンドル数が設定値に満たないため取引しません。現在のキャンドル数: %s", strconv.Itoa(lenCandles))
+				continue
 			}
-
+			if config.Config.IsProduction {
+				if time.Now().Hour() == 23 && time.Now().Minute() == 59 && time.Now().Second() == 50 {
+					utils.UploadLogFile()
+				}
+				if (time.Now().Hour() != 4 && time.Now().Second() == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second() == 0) {
+					ai.Trade(tradeTicker)
+				}
+				if time.Now().Hour() == 4 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
+					// Truncateは一旦なし
+					//if !isTruncate {
+					//	isTruncate, _ = service.Truncate()
+					//	if isTruncate {
+					//		log.Println("テーブル削除完了")
+					//		isTruncate = false
+					//	}
+					//}
+				}
+			} else {
+				if (time.Now().Hour() != 19 && time.Now().Second() == 0) || (time.Now().Hour() == 19 && eventLength%2 == 1 && time.Now().Second() == 0) {
+					ai.Trade(tradeTicker)
+				}
+				if time.Now().Hour() == 19 && time.Now().Minute() == 0 && time.Now().Second() == 10 {
+					// Truncateは一旦なし
+					//if !isTruncate {
+					//	isTruncate, _ = service.Truncate()
+					//	if isTruncate {
+					//		log.Println("テーブル削除完了")
+					//		isTruncate = false
+					//	}
+					//}
+				}
+			}
 			// 取引時間6時~23時
 			//if (time.Now().Hour() < 14 || time.Now().Hour() > 20) && time.Now().Second()%10 == 0 {
 			//	ai.Trade(tradeTicker)
