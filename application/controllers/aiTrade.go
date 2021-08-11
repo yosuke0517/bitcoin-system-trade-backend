@@ -94,7 +94,8 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 	atr, _ := service.Atr(30)
 	// トレード時間の妥当性チェック
 	if ai.StartTrade.After(candle.Time) {
-		return
+		log.Println("candle.TimeがStartTradeより過去のため取引しません")
+		return "timeError", false, 0.0
 	}
 	// ショートの利益確定後にロングでインしないようにreOpenをfalseにする
 	if isShortProfit {
@@ -186,7 +187,8 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	atr, _ := service.Atr(30)
 
 	if ai.StartTrade.After(candle.Time) {
-		return
+		log.Println("candle.TimeがStartTradeより過去のため取引しません")
+		return "timeError", false, 0.0
 	}
 	// ロングの利益確定後にショートでインしないようにreOpenをfalseにする
 	if isLongProfit {
@@ -498,7 +500,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
 			if sellPoint > buyPoint || shortReOpen {
-				_, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
+				childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
+				if childOrderAcceptanceID == "timeError" {
+					continue
+				}
 				if !isOrderCompleted {
 					utils.SendLine("オープンショート：注文が保存できませんでした。アプリを終了します。")
 					log.Fatal("オープンショート：注文が保存できませんでした。アプリを終了します。")
@@ -552,7 +557,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			//if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) {
 			log.Printf("ロング？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
 			if buyPoint > sellPoint || longReOpen {
-				_, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
+				childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
+				if childOrderAcceptanceID == "timeError" {
+					continue
+				}
 				if !isOrderCompleted {
 					utils.SendLine("オープンロング：注文が保存できませんでした。アプリを終了します。")
 					log.Fatal("オープンロング：注文が保存できませんでした。アプリを終了します。")
