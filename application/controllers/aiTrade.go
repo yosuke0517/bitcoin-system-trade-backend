@@ -195,6 +195,7 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 		shortReOpen = false
 	}
 	if !ai.SignalEvents.CanSell(candle.Time, shortReOpen) {
+		log.Println("canSell: falseのためreturn")
 		return
 	}
 
@@ -267,6 +268,7 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 		return childOrderAcceptanceID, isOrderCompleted, orderPrice
 	} else {
 		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
+		log.Printf("couldSell: %s", strconv.FormatBool(couldSell))
 		return "", couldSell, orderPrice
 	}
 }
@@ -501,6 +503,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
 			if sellPoint > buyPoint || shortReOpen {
 				childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
+				log.Printf("childOrderAcceptanceID: %s", childOrderAcceptanceID)
 				if childOrderAcceptanceID == "timeError" {
 					continue
 				}
