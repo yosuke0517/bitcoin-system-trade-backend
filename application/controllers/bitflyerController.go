@@ -46,7 +46,7 @@ func StreamIngestionData() {
 				if time.Now().Hour() == 23 && time.Now().Minute() == 59 && time.Now().Second() == 50 {
 					utils.UploadLogFile()
 				}
-				if (time.Now().Hour() != 4 && time.Now().Second() == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Second() == 0) {
+				if (time.Now().Hour() != 4 && time.Now().Minute() == 0 && time.Now().Second() == 0) || (time.Now().Hour() == 4 && eventLength%2 == 1 && time.Now().Minute() == 0 && time.Now().Second() == 0) {
 					ai.Trade(tradeTicker)
 				}
 				if time.Now().Hour() == 4 && time.Now().Minute() == 0 && time.Now().Second() == 10 {

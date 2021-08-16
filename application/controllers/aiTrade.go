@@ -175,6 +175,7 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 		return childOrderAcceptanceID, isOrderCompleted, orderPrice
 	} else {
 		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
+		utils.SendLine("オープンロングのcouldBuy： " + strconv.FormatBool(couldBuy))
 		return "", couldBuy, candle.Close
 	}
 }
@@ -268,6 +269,7 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 		return childOrderAcceptanceID, isOrderCompleted, orderPrice
 	} else {
 		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
+		utils.SendLine("オープンショートのcouldSell： " + strconv.FormatBool(couldSell))
 		log.Printf("couldSell: %s", strconv.FormatBool(couldSell))
 		return "", couldSell, orderPrice
 	}
@@ -327,11 +329,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	fmt.Printf("eventLength:%s\n", strconv.Itoa(eventLength))
 	// 取引が完了していたらParamsを更新する
 	if eventLength%2 == 0 {
-		// オープンは0秒台のみ
-		//if time.Now().Second() > 9 {
-		//	fmt.Printf("10秒より大きい秒数でのオープンはキャンセル:%s", time.Now().Local())
-		//	return
-		//}
 		reOpen := false
 		if longReOpen || shortReOpen {
 			reOpen = true
