@@ -333,7 +333,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if longReOpen || shortReOpen {
 			reOpen = true
 		}
-		fmt.Println(reOpen)
 		if ai.OptimizedTradeParams == nil {
 			go ai.UpdateOptimizeParams(true, reOpen)
 		}
@@ -494,120 +493,122 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
-		if isNoPosition && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen) {
-			// 1つでも買いのインディケータがあれば買い
-			// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
-			log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
-			if sellPoint > buyPoint || shortReOpen {
-				childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
-				log.Printf("childOrderAcceptanceID: %s", childOrderAcceptanceID)
-				if childOrderAcceptanceID == "timeError" {
-					continue
-				}
-				if !isOrderCompleted {
-					utils.SendLine("オープンショート：注文が保存できませんでした。logを確認してください。")
-					log.Println("オープンショート：注文が保存できませんでした。logを確認してください。")
-					continue
-				}
-				// StopLimit後のオープンの場合はisStopLimitを初期化する
-				if isStopLimit {
-					isStopLimit = false
-				}
-				// ロングの利確後のオープンの場合はisLongProfitを初期化する
-				if isLongProfit {
-					isLongProfit = false
-				}
-				log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-				if ai.BackTest {
-					orderPrice = price
-				}
-				//profit = math.Floor(orderPrice*0.996*10000) / 10000
-				// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
-				if len(bbDown) >= i {
-					//profit = bbDown[i] * 0.997
-					profit = bbDown[i] * 0.99
-					//profit = orderPrice * 0.9997
-					log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-				} else {
-					profit = math.Floor(orderPrice*0.975*10000) / 10000
-					//profit = math.Floor(orderPrice*0.9995*10000) / 10000
-					log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-				}
-				// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
-				if len(bbDown) >= i {
-					if orderPrice < bbDown[i] {
-						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
+		if time.Now().Minute() == 0 || (shortReOpen || longReOpen) {
+			if isNoPosition && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen) {
+				// 1つでも買いのインディケータがあれば買い
+				// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
+				log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
+				if sellPoint > buyPoint || shortReOpen {
+					childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
+					log.Printf("childOrderAcceptanceID: %s", childOrderAcceptanceID)
+					if childOrderAcceptanceID == "timeError" {
+						continue
+					}
+					if !isOrderCompleted {
+						utils.SendLine("オープンショート：注文が保存できませんでした。logを確認してください。")
+						log.Println("オープンショート：注文が保存できませんでした。logを確認してください。")
+						continue
+					}
+					// StopLimit後のオープンの場合はisStopLimitを初期化する
+					if isStopLimit {
+						isStopLimit = false
+					}
+					// ロングの利確後のオープンの場合はisLongProfitを初期化する
+					if isLongProfit {
+						isLongProfit = false
+					}
+					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+					if ai.BackTest {
+						orderPrice = price
+					}
+					//profit = math.Floor(orderPrice*0.996*10000) / 10000
+					// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
+					if len(bbDown) >= i {
+						//profit = bbDown[i] * 0.997
+						profit = bbDown[i] * 0.99
+						//profit = orderPrice * 0.9997
+						log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+					} else {
 						profit = math.Floor(orderPrice*0.975*10000) / 10000
 						//profit = math.Floor(orderPrice*0.9995*10000) / 10000
-						log.Println(profit)
+						log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+					}
+					// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
+					if len(bbDown) >= i {
+						if orderPrice < bbDown[i] {
+							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
+							profit = math.Floor(orderPrice*0.975*10000) / 10000
+							//profit = math.Floor(orderPrice*0.9995*10000) / 10000
+							log.Println(profit)
+						}
+					}
+					stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
+					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+					log.Println("sellOpenのオープン")
+					utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
+					sellOpen = true
+					if shortReOpen {
+						log.Println("shortReOpen成功")
+						shortReOpen = false
 					}
 				}
-				stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
-				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-				log.Println("sellOpenのオープン")
-				utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
-				sellOpen = true
-				if shortReOpen {
-					log.Println("shortReOpen成功")
-					shortReOpen = false
-				}
-			}
-			// #64
-			//if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) {
-			log.Printf("ロング？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
-			if buyPoint > sellPoint || longReOpen {
-				childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
-				if childOrderAcceptanceID == "timeError" {
-					continue
-				}
-				if !isOrderCompleted {
-					utils.SendLine("オープンロング：注文が保存できませんでした。logを確認してください。")
-					log.Println("オープンロング：注文が保存できませんでした。logを確認してください。")
-					continue
-				}
-				// StopLimit後のオープンの場合はisStopLimitを初期化する
-				if isStopLimit {
-					isStopLimit = false
-				}
-				// ショートの利確後のオープンの場合はisShortProfitを初期化する
-				if isShortProfit {
-					isShortProfit = false
-				}
-				log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-				if ai.BackTest {
-					orderPrice = price
-				}
-				//profit = math.Floor(orderPrice*1.004*10000) / 10000
-				// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
-				if len(bbUp) >= i {
-					//profit = bbUp[i] * 1.003
-					profit = bbUp[i] * 1.01
-					// profit = bbUp[i]
-					//profit = orderPrice * 1.0003
-					log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-				} else {
-					profit = math.Floor(orderPrice*1.025*10000) / 10000
-					//profit = math.Floor(orderPrice*1.0005*10000) / 10000
-					log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-				}
-				if len(bbUp) >= i {
-					if orderPrice > bbUp[i] {
-						log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
+				// #64
+				//if buyPoint > sellPoint || (longReOpen && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i]) {
+				log.Printf("ロング？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
+				if buyPoint > sellPoint || longReOpen {
+					childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Buy(df.Candles[i], price, bbRate)
+					if childOrderAcceptanceID == "timeError" {
+						continue
+					}
+					if !isOrderCompleted {
+						utils.SendLine("オープンロング：注文が保存できませんでした。logを確認してください。")
+						log.Println("オープンロング：注文が保存できませんでした。logを確認してください。")
+						continue
+					}
+					// StopLimit後のオープンの場合はisStopLimitを初期化する
+					if isStopLimit {
+						isStopLimit = false
+					}
+					// ショートの利確後のオープンの場合はisShortProfitを初期化する
+					if isShortProfit {
+						isShortProfit = false
+					}
+					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+					if ai.BackTest {
+						orderPrice = price
+					}
+					//profit = math.Floor(orderPrice*1.004*10000) / 10000
+					// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
+					if len(bbUp) >= i {
+						//profit = bbUp[i] * 1.003
+						profit = bbUp[i] * 1.01
+						// profit = bbUp[i]
+						//profit = orderPrice * 1.0003
+						log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+					} else {
 						profit = math.Floor(orderPrice*1.025*10000) / 10000
-						//profit = math.Floor(orderPrice* 1.0005*10000) / 10000
-						log.Println(profit)
+						//profit = math.Floor(orderPrice*1.0005*10000) / 10000
+						log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					}
-				}
-				stopLimit = orderPrice * ai.StopLimitPercent
-				log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-				log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-				log.Println("buyOpenのオープン")
-				utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
-				buyOpen = true
-				if longReOpen {
-					log.Println("longReOpen成功")
-					longReOpen = false
+					if len(bbUp) >= i {
+						if orderPrice > bbUp[i] {
+							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
+							profit = math.Floor(orderPrice*1.025*10000) / 10000
+							//profit = math.Floor(orderPrice* 1.0005*10000) / 10000
+							log.Println(profit)
+						}
+					}
+					stopLimit = orderPrice * ai.StopLimitPercent
+					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
+					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
+					log.Println("buyOpenのオープン")
+					utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
+					buyOpen = true
+					if longReOpen {
+						log.Println("longReOpen成功")
+						longReOpen = false
+					}
 				}
 			}
 		}
