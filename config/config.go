@@ -29,6 +29,7 @@ type ConfigList struct {
 	NumRanking       int
 	Continue         bool
 	OpenableBbRate   float64
+	OpenableBbWith   float64
 	AwsAccessKey     string
 	AwsSecretKey     string
 	IsProduction     bool
@@ -73,6 +74,7 @@ func init() {
 		NumRanking:       cfg.Section("gotrade").Key("num_ranking").MustInt(),
 		Continue:         cfg.Section("gotrade").Key("continue").MustBool(),
 		OpenableBbRate:   cfg.Section("gotrade").Key("openable_bb_rate").MustFloat64(),
+		OpenableBbWith:   cfg.Section("gotrade").Key("openable_bb_with"),
 		AwsAccessKey:     cfg.Section("aws").Key("access_key").String(),
 		AwsSecretKey:     cfg.Section("aws").Key("secret_key").String(),
 		IsProduction:     cfg.Section("gotrade").Key("production").MustBool(),
