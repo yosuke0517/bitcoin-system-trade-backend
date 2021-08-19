@@ -174,8 +174,8 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 		}
 		return childOrderAcceptanceID, isOrderCompleted, orderPrice
 	} else {
-		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, candle.Time, candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
-		utils.SendLine("オープンロングのcouldBuy： " + strconv.FormatBool(couldBuy))
+		couldBuy := ai.SignalEvents.Buy(ai.ProductCode, time.Now(), candle.Close, 1.0, true, longReOpen, price, atr, pnl, bbRate)
+		utils.SendLine("couldBuy： " + strconv.FormatBool(couldBuy))
 		return "", couldBuy, candle.Close
 	}
 }
@@ -268,8 +268,8 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 		}
 		return childOrderAcceptanceID, isOrderCompleted, orderPrice
 	} else {
-		couldSell := ai.SignalEvents.Sell(ai.ProductCode, candle.Time, candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
-		utils.SendLine("オープンショートのcouldSell： " + strconv.FormatBool(couldSell))
+		couldSell := ai.SignalEvents.Sell(ai.ProductCode, time.Now(), candle.Close, 1.0, true, shortReOpen, price, atr, pnl, bbRate)
+		utils.SendLine("couldSell： " + strconv.FormatBool(couldSell))
 		log.Printf("couldSell: %s", strconv.FormatBool(couldSell))
 		return "", couldSell, orderPrice
 	}
@@ -478,23 +478,27 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		//}
 		// オープンの場合はbuyPoint,sellPointどちらかが2以上のときでStopLimitを設定する
 		bbRate := 1.0
+		bbWith := 0.0
 		if bbUp == nil || bbDown == nil {
 			log.Println("bbUpまたはbbDownがnilのため取引をしません")
+			return
 		}
 		if len(bbUp) >= i && len(bbDown) >= i {
 			bbRate = bbDown[i] / bbUp[i]
 		}
+		bbWith = (bbUp[i] / bbDown[i]) - 1.0
 		//if bbRate > 0.99 {
 		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 		//}
-		log.Printf("オープン可能かどうか：%s\n", strconv.FormatBool(isNoPosition && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen)))
+		log.Printf("オープン可能かどうか：%s\n", strconv.FormatBool(isNoPosition && bbWith > config.Config.OpenableBbWith && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen)))
 		log.Println("--------------------------以下、詳細です--------------------------")
 		log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
+		log.Printf("bbWith:%s\n", strconv.FormatFloat(bbWith, 'f', -1, 64))
 		log.Printf("isNoPosition:%s\n", strconv.FormatBool(isNoPosition))
 		log.Printf("sellOpen?:%s\n", strconv.FormatBool(sellOpen))
 		log.Printf("buyOpen?:%s\n", strconv.FormatBool(buyOpen))
 		if time.Now().Minute() == 0 || (shortReOpen || longReOpen) {
-			if isNoPosition && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen) {
+			if isNoPosition && bbWith > config.Config.OpenableBbWith && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen) {
 				// 1つでも買いのインディケータがあれば買い
 				// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 				log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
@@ -546,7 +550,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					log.Println("sellOpenのオープン")
-					utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
+					utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64) + "\nbbWith: " + strconv.FormatFloat(bbWith, 'f', -1, 64))
 					sellOpen = true
 					if shortReOpen {
 						log.Println("shortReOpen成功")
@@ -603,7 +607,7 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
 					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					log.Println("buyOpenのオープン")
-					utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64))
+					utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64) + "\nbbWith: " + strconv.FormatFloat(bbWith, 'f', -1, 64))
 					buyOpen = true
 					if longReOpen {
 						log.Println("longReOpen成功")
