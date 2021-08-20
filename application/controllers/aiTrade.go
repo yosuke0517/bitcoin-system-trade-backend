@@ -302,16 +302,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		fmt.Printf("フラット（reOpenが無い && positionがない）状態かつ15分00秒じゃないため取引はしません。%s\n", time.Now().Truncate(time.Second))
 		return
 	}
-	//// 15分00秒のときはキャンドルでの売買判定を追加する TODO 判定のフラグを関数にできる
-	//if time.Now().Minute()%5 == 0 && time.Now().Second() < 5 {
-	//	isCandleOpportunity = true
-	//	log.Println("isCandleOpportunityをtrueにします")
-	//}
-	//// 15分00秒じゃ無いときかつ、PositionがあるときはProfitでの決済のみ対応する
-	//if time.Now().Minute()%5 != 0 || (time.Now().Minute()%5 == 0 && time.Now().Second() > 5) {
-	//	isCandleOpportunity = false
-	//	log.Println("isCandleOpportunityをfalseにします")
-	//}
 	atr, _ := service.Atr(30)
 	price := ticker.GetMidPrice()
 	// ボラティリティが低い時はトレードしない
@@ -404,8 +394,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] {
 			//	buyPoint++
 			//}
-			// 15分足への変更に伴い一旦EMAのみ
-			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] {
+			// buyOpenのオープン
+			if !buyOpen && !sellOpen && emaValues1[i-1] < emaValues2[i-1] && emaValues1[i] >= emaValues2[i] && (outMACD[i] > 0 || outMACDHist[i] > 0) && outMACD[i] >= outMACDSignal[i] {
 				buyPoint++
 			}
 			// buyOpenのクローズ
@@ -418,8 +408,8 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 			// #64 if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] {
 			//	sellPoint++
 			//}
-			// 15分足への変更に伴い一旦EMAのみ
-			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] { // && pauseDone
+			// ショートのオープン
+			if !buyOpen && !sellOpen && emaValues1[i-1] > emaValues2[i-1] && emaValues1[i] <= emaValues2[i] && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i] { // && pauseDone
 				sellPoint++
 			}
 			// sellOpenのクローズ ADD: #63 MACDのメインライン（outMACD[i]）が0より大きい && シグナル（outMACDSignal）より大きい を条件として追加
@@ -486,10 +476,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if len(bbUp) >= i && len(bbDown) >= i {
 			bbRate = bbDown[i] / bbUp[i]
 		}
-		bbWith = (bbUp[i] / bbDown[i]) - 1.0
-		//if bbRate > 0.99 {
-		//	fmt.Printf("bbRateが高いため取引はしません。bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
-		//}
+		if len(bbUp) >= i && len(bbDown) >= i {
+			bbWith = (bbUp[i] / bbDown[i]) - 1.0
+		}
 		log.Printf("オープン可能かどうか：%s\n", strconv.FormatBool(isNoPosition && bbWith > config.Config.OpenableBbWith && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen)))
 		log.Println("--------------------------以下、詳細です--------------------------")
 		log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
