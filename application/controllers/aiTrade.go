@@ -97,10 +97,6 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 		log.Println("candle.TimeがStartTradeより過去のため取引しません")
 		return "timeError", false, 0.0
 	}
-	// ショートの利益確定後にロングでインしないようにreOpenをfalseにする
-	if isShortProfit {
-		longReOpen = false
-	}
 	if !ai.SignalEvents.CanBuy(candle.Time, longReOpen) {
 		return
 	}
@@ -165,7 +161,7 @@ func (ai *AI) Buy(candle model.Candle, price, bbRate float64) (childOrderAccepta
 		}
 		isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
 		// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない
-		if config.Config.Continue && len(positionRes) > 0 && !isShortProfit {
+		if config.Config.Continue && len(positionRes) > 0 {
 			longReOpen = true
 		}
 		// StopLimit後はreOpenしない
@@ -190,10 +186,6 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	if ai.StartTrade.After(candle.Time) {
 		log.Println("candle.TimeがStartTradeより過去のため取引しません")
 		return "timeError", false, 0.0
-	}
-	// ロングの利益確定後にショートでインしないようにreOpenをfalseにする
-	if isLongProfit {
-		shortReOpen = false
 	}
 	if !ai.SignalEvents.CanSell(candle.Time, shortReOpen) {
 		log.Println("canSell: falseのためreturn")
@@ -258,8 +250,8 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 		}
 		childOrderAcceptanceID = resp.ChildOrderAcceptanceID
 		isOrderCompleted, orderPrice = ai.WaitUntilOrderComplete(childOrderAcceptanceID, pnl, bbRate)
-		// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない。ADD:ロングにて利益確定済みじゃないとき（isLongProfit）
-		if config.Config.Continue && len(positionRes) > 0 && !isLongProfit {
+		// continueフラグがtrueのときは連続売買する。positionResが0件のときは新規なのでReOpenはしない。
+		if config.Config.Continue && len(positionRes) > 0 {
 			shortReOpen = true
 		}
 		// StopLimit後はreOpenしない
@@ -275,11 +267,8 @@ func (ai *AI) Sell(candle model.Candle, price, bbRate float64) (childOrderAccept
 	}
 }
 
-var profit float64    // オープン時に設定する1取引ごとの利益
 var stopLimit float64 // 損切りライン
 var atrRate float64   // atr率
-var isLongProfit bool
-var isShortProfit bool
 var size float64
 var sellOpen bool
 var buyOpen bool
@@ -336,7 +325,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 	defer ai.TradeSemaphore.Release(1)
 	params := ai.OptimizedTradeParams
 	log.Println(params)
-	log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 	if params == nil {
 		return
 	}
@@ -489,7 +477,6 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if time.Now().Minute() == 0 || (shortReOpen || longReOpen) {
 			if isNoPosition && bbWith > config.Config.OpenableBbWith && bbRate < config.Config.OpenableBbRate || (shortReOpen || longReOpen) {
 				// 1つでも買いのインディケータがあれば買い
-				// #64 if sellPoint > buyPoint || (shortReOpen && (outMACD[i] < 0 || outMACDHist[i] < 0) && outMACD[i] <= outMACDSignal[i]) {
 				log.Printf("ショート？？:%s\n", strconv.FormatBool(sellPoint > buyPoint))
 				if sellPoint > buyPoint || shortReOpen {
 					childOrderAcceptanceID, isOrderCompleted, orderPrice := ai.Sell(df.Candles[i], price, bbRate)
@@ -506,38 +493,12 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					if isStopLimit {
 						isStopLimit = false
 					}
-					// ロングの利確後のオープンの場合はisLongProfitを初期化する
-					if isLongProfit {
-						isLongProfit = false
-					}
 					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 					if ai.BackTest {
 						orderPrice = price
 					}
-					//profit = math.Floor(orderPrice*0.996*10000) / 10000
-					// オープン時にボリンジャーバンドの下抜け値をターゲットに設定
-					if len(bbDown) >= i {
-						//profit = bbDown[i] * 0.997
-						profit = bbDown[i] * 0.99
-						//profit = orderPrice * 0.9997
-						log.Printf("profit(bbDownから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					} else {
-						profit = math.Floor(orderPrice*0.975*10000) / 10000
-						//profit = math.Floor(orderPrice*0.9995*10000) / 10000
-						log.Printf("profit(bbDownから取れなかったのでパーセントで出す):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					}
-					// ボリンジャーバンドの下抜け値がorderPriceより小さかったらorderPriceから利益を算出する
-					if len(bbDown) >= i {
-						if orderPrice < bbDown[i] {
-							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*0.975*10000) / 10000
-							//profit = math.Floor(orderPrice*0.9995*10000) / 10000
-							log.Println(profit)
-						}
-					}
 					stopLimit = orderPrice * (1.0 + (1.0 - ai.StopLimitPercent))
 					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					log.Println("sellOpenのオープン")
 					utils.SendLine("ショートのオープン（sell): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64) + "\nbbWith: " + strconv.FormatFloat(bbWith, 'f', -1, 64))
 					sellOpen = true
@@ -563,38 +524,12 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 					if isStopLimit {
 						isStopLimit = false
 					}
-					// ショートの利確後のオープンの場合はisShortProfitを初期化する
-					if isShortProfit {
-						isShortProfit = false
-					}
 					log.Printf("bbRate:%s\n", strconv.FormatFloat(bbRate, 'f', -1, 64))
 					if ai.BackTest {
 						orderPrice = price
 					}
-					//profit = math.Floor(orderPrice*1.004*10000) / 10000
-					// オープン時にボリンジャーバンドの上抜けけ値をターゲットに設定
-					if len(bbUp) >= i {
-						//profit = bbUp[i] * 1.003
-						profit = bbUp[i] * 1.01
-						// profit = bbUp[i]
-						//profit = orderPrice * 1.0003
-						log.Printf("profit(bbUpから):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					} else {
-						profit = math.Floor(orderPrice*1.025*10000) / 10000
-						//profit = math.Floor(orderPrice*1.0005*10000) / 10000
-						log.Printf("profit(bbUpから取れなかったのでパーセントで):%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
-					}
-					if len(bbUp) >= i {
-						if orderPrice > bbUp[i] {
-							log.Println("急激な値の変化です。bbandsは使わずに%で利益を決定します。")
-							profit = math.Floor(orderPrice*1.025*10000) / 10000
-							//profit = math.Floor(orderPrice* 1.0005*10000) / 10000
-							log.Println(profit)
-						}
-					}
 					stopLimit = orderPrice * ai.StopLimitPercent
 					log.Printf("orderPrice:%s\n", strconv.FormatFloat(orderPrice, 'f', -1, 64))
-					log.Printf("profit:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 					log.Println("buyOpenのオープン")
 					utils.SendLine("ロングのオープン（buy): " + strconv.FormatFloat(orderPrice, 'f', -1, 64) + "\nstopLimit: " + strconv.FormatFloat(stopLimit, 'f', -1, 64) + "\nbbRate: " + strconv.FormatFloat(bbRate, 'f', -1, 64) + "\nbbWith: " + strconv.FormatFloat(bbWith, 'f', -1, 64))
 					buyOpen = true
@@ -607,22 +542,16 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		}
 		// クローズ
 		// クローズ時はbuyPoint, sellPointどちらも1以上でParamsをUpdateしてStopLimitを初期化
-		// sellOpenのクローズ（buyPointにてクローズする場合は15分単位のみ）
-		//if sellOpen == true && (buyPoint > 0 || price <= profit || price >= stopLimit) {
 		if sellOpen {
 			log.Printf("クローズsellOpen?:%s\n", strconv.FormatBool(sellOpen))
 			log.Printf("クローズショート？？buyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint > sellPoint))
-			log.Printf("クローズショート？？price <= profit:%s\n", strconv.FormatBool(price <= profit))
-			log.Printf("クローズショート？？総合判定:%s\n", strconv.FormatBool((buyPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5) || (price <= profit || price >= stopLimit)))
-			if buyPoint > 0 || price <= profit || price >= stopLimit {
+			log.Printf("クローズショート？？総合判定:%s\n", strconv.FormatBool(buyPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5))
+			if buyPoint > 0 || price >= stopLimit {
 				_, isOrderCompleted, _ := ai.Buy(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					utils.SendLine("クローズショート：注文が保存できませんでした。logを確認してください。")
 					log.Println("クローズショート：注文が保存できませんでした。logを確認してください。")
 					continue
-				}
-				if price <= profit {
-					isShortProfit = true
 				}
 				if price >= stopLimit {
 					log.Println("損切り")
@@ -630,13 +559,10 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				}
 				utils.SendLine("ショートのクローズ（buy): " + strconv.FormatFloat(price, 'f', -1, 64))
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
-				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
-				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				fmt.Printf("isStopLimit??: %s\n", strconv.FormatBool(price >= stopLimit))
 				fmt.Printf("StopLimitの値:%s\n", strconv.FormatFloat(stopLimit, 'f', -1, 64))
 				log.Println("sellOpenのクローズ")
 				sellOpen = false
-				profit = 0.0
 				stopLimit = 0.0
 				// ai.UpdateOptimizeParams(true)
 			}
@@ -645,17 +571,13 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 		if buyOpen {
 			log.Printf("クローズbuyOpen?:%s\n", strconv.FormatBool(buyOpen))
 			log.Printf("クローズロングbuyPoint > sellPoint:%s\n", strconv.FormatBool(buyPoint < sellPoint))
-			log.Printf("クローズロングprice >= profit:%s\n", strconv.FormatBool(price >= profit))
-			log.Printf("クローズロング最終判定:%s\n", strconv.FormatBool((sellPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5) || (price >= profit || price <= stopLimit)))
-			if sellPoint > 0 || price >= profit || price <= stopLimit {
+			log.Printf("クローズロング最終判定:%s\n", strconv.FormatBool(sellPoint > 0 && time.Now().Minute()%tradeDuration == 0 && time.Now().Second() < 5))
+			if sellPoint > 0 || price <= stopLimit {
 				_, isOrderCompleted, _ := ai.Sell(df.Candles[i], price, bbRate)
 				if !isOrderCompleted {
 					utils.SendLine("クローズロング：注文が保存できませんでした。logを確認してください。")
 					log.Println("クローズロング：注文が保存できませんでした。logを確認してください。")
 					continue
-				}
-				if price >= profit {
-					isLongProfit = true
 				}
 				if price <= stopLimit {
 					log.Println("損切り")
@@ -664,12 +586,9 @@ func (ai *AI) Trade(ticker bitflyer.Ticker) {
 				utils.SendLine("ロングのクローズ（sell): " + strconv.FormatFloat(price, 'f', -1, 64))
 				log.Println("buyOpenのクローズ")
 				fmt.Printf("priceの値:%s\n", strconv.FormatFloat(price, 'f', -1, 64))
-				fmt.Printf("isProfit??: %s\n", strconv.FormatBool(price <= profit))
-				fmt.Printf("Profitの値:%s\n", strconv.FormatFloat(profit, 'f', -1, 64))
 				fmt.Printf("isStopLimit??: %s\n", strconv.FormatBool(price >= stopLimit))
 				fmt.Printf("StopLimitの値:%s\n", strconv.FormatFloat(stopLimit, 'f', -1, 64))
 				buyOpen = false
-				profit = 0.0
 				stopLimit = 0.0
 				// ai.UpdateOptimizeParams(true)
 			}
